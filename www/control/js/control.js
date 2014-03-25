@@ -278,10 +278,10 @@ $(document).ready(function () {
         }
     });
 
-    var $datapointGrid = $("#grid_datapoints");
-    var $eventGrid = $("#grid_events");
+    var $datapointGrid = $('#grid_datapoints');
+    var $eventGrid = $('#grid_events');
 
-    $("#loader_message").append(translateWord("connecting to Homander") + " ... <br/>");
+    $("#loader_message").append(translateWord('connecting to Homander') +  '... <br/>');
 
     var socket = io.connect( $(location).attr('protocol') + '//' +  $(location).attr('host') + "?key="+socketSession);
 
@@ -708,9 +708,11 @@ $(document).ready(function () {
     $("#grid_datapoints").jqGrid({
         datatype: "local",
 
-        colNames:['id', getWord('TypeName'), getWord('Name'), getWord('Parent Name'), getWord('Value'), getWord('Timestamp'), getWord('ack'), getWord('lastChange')],
+        colNames:['id', 'aid','oid', getWord('TypeName'), getWord('Name'), getWord('Parent Name'), getWord('Value'), getWord('Timestamp'), getWord('ack'), getWord('lastChange')],
         colModel:[
             {name:'id',index:'id', width:60, sorttype: "int"},
+            {name:'adapter_id',index:'adapter_id', width:40, sorttype: "int"},
+            {name:'object_id',index:'object_id', width:50, sorttype: "int"},
             {name:'type',index:'type', width:80},
             {name:'name',index:'name', width:240},
             {name:'parent',index:'parent', width:240},
@@ -744,7 +746,7 @@ $(document).ready(function () {
                 // afterSave
                 datapointsEditing = false;
                 //console.log(datapointsLastSel+ " "+$("#grid_datapoints").jqGrid("getCell", datapointsLastSel, "val"));
-                socket.emit('setState', [datapointsLastSel, $("#grid_datapoints").jqGrid("getCell", datapointsLastSel, "val")]);
+                socket.emit('setPointValue', datapointsLastSel, $("#grid_datapoints").jqGrid("getCell", datapointsLastSel, "val"), null, false);
             });
         }
     }).jqGrid('filterToolbar',{
@@ -759,30 +761,31 @@ $(document).ready(function () {
     $("#loader_message").append(translateWord("loading index") + " ... <br/>");
 
     socket.emit('getIndex', function(obj) {
-        $("#index").html(JSON.stringify(obj, null, "  "));
+        function showIndex (obj) {
+            var t = '';
+            for (var n in obj) {
+                t  += '<h1>' + n + '</h1>\n';
+                for (var i in obj[n]){
+                    t  += '<p>' + i + ' - ' + JSON.stringify(obj[n][i], null, "  ") + '<p>';
+                }
+            }
+            return t;
+        }
+
+
+        //$("#index").html(JSON.stringify(obj, null, "  "));
+        $("#index").html (showIndex(obj));
         dataIndex = obj;
         $("#loader_message").append(translateWord("loading objects") + " ... <br/>");
 
         socket.emit('getObjects', function(obj) {
             dataObjects = obj;
-            $("#meta").html(JSON.stringify(obj, null, "  "));
+
+            // Stringify
+            //$("#meta").html(JSON.stringify(obj, null, "  "));
 
             socket.on('event', function(combyId, value) {
                 var id = [combyId >> cAdapterShift, combyId & cObjectsMask, combyId];
-                /*
-                if (obj[3] && dataObjects[obj[0]]) {
-                    if (dataObjects[obj[0]].Name) {
-                        if (dataObjects[obj[0]].Name.match(/^BidCos-RF\./)) {
-                            lastRfEvent = 0;
-                        } else if (dataObjects[obj[0]].Name.match(/^BidCos-Wired\./)) {
-                            lastHs485Event = 0;
-                        } else if (dataObjects[obj[0]].Name.match(/^CUxD\./)) {
-                            lastCuxEvent = 0;
-                        } else {
-                            lastRegaPoll = 0;
-                        }
-                    }
-                }*/
 
                 value.val = $('<div/>').text(value.val).html();
 
@@ -810,6 +813,8 @@ $(document).ready(function () {
                 var data = {
                     id:         eventCounter,
                     ise_id:     combyId,
+                    adapter_id: id[0/*cAdapterId*/],
+                    object_id:  id[1/*cObjectId*/],
                     type:       (dataObjects[id[cAdapterId]][id[cObjectId]] ? dataObjects[id[cAdapterId]][id[cObjectId]].specType : ""),
                     name:       (dataObjects[id[cAdapterId]][id[cObjectId]] ? dataObjects[id[cAdapterId]][id[cObjectId]].name : ""),
                     parent:     (dataObjects[id[cAdapterId]][id[cObjectId]] && dataObjects[id[cAdapterId]][id[cObjectId]].parent ? dataObjects[id[cAdapterId]][dataObjects[id[cAdapterId]][id[cObjectId]].parent].name : ""),
@@ -826,7 +831,6 @@ $(document).ready(function () {
             });
 
             loadDatapoints();
-
         });
     });
 
@@ -866,6 +870,8 @@ $(document).ready(function () {
                     var combyId = adapterId << cAdapterShift | objId;
                     var data = {
                         id:         combyId,
+                        adapter_id: adapterId,
+                        object_id:  objId,
                         name:       (dataObjects[adapterId][objId] ? dataObjects[adapterId][objId].name : ""),
                         parent:     (dataObjects[adapterId][objId] && dataObjects[adapterId][objId].parent ? dataObjects[adapterId][dataObjects[adapterId][objId].parent].name : ""),
                         type:       (dataObjects[adapterId][objId] ? dataObjects[adapterId][objId].specType : ""),
@@ -931,10 +937,12 @@ $(document).ready(function () {
 
     $("#grid_events").jqGrid({
         datatype: "local",
-        colNames:[getWord('eventCount'),'id', getWord('TypeName'), getWord('Name'), getWord('Parent Name'),getWord('Value'), getWord('Timestamp'), getWord('ack'), getWord('lastChange')],
+        colNames:[getWord('eventCount'),'id', 'aid', 'oid', getWord('TypeName'), getWord('Name'), getWord('Parent Name'),getWord('Value'), getWord('Timestamp'), getWord('ack'), getWord('lastChange')],
         colModel:[
             {name:'id',index:'id', width:60, sorttype: "int", hidden: true},
             {name:'ise_id',index:'ise_id', width:60, sorttype: "int"},
+            {name:'adapter_id',index:'adapter_id', width:40, sorttype: "int"},
+            {name:'object_id',index:'object_id', width:50, sorttype: "int"},
             {name:'type',index:'type', width:80},
             {name:'name',index:'name', width:240},
             {name:'parent',index:'parent', width:240},
