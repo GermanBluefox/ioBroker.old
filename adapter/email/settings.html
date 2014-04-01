@@ -1,0 +1,206 @@
+<table style="font-size: 12px">
+    <tr>
+        <td colspan='3'><h2 class="translate">Connection settings</h2></td>
+    </tr>
+    <tr>
+        <td class="translate">Transport:</td>
+        <td><select id="email_transport">
+            <option value="SMTP">SMTP</option>
+            <option value="SES">Amazon SES</option>
+            <option value="Sendmail">System sendmail</option>
+            <option value="Pickup">Store the e-mail in a directory</option>
+            <option value="Direct">Send e-mail directly to recipients MTA servers</option>
+        </select></td>
+        <td class="translate"></td>
+    </tr>
+    <tr>
+        <td class="translate">Service:</td>
+        <td><select id="email_service">
+            <option value="Gmail">Gmail</option>
+            <option value="DynectEmail">DynectEmail</option>
+            <option value="hot.ee">hot.ee</option>
+            <option value="Hotmail">Hotmail</option>
+            <option value="iCloud">iCloud</option>
+            <option value="mail.ee">mail.ee</option>
+            <option value="Mail.Ru">Mail.Ru</option>
+            <option value="Mailgun">Mailgun</option>
+            <option value="Mailjet">Mailjet</option>
+            <option value="Mandrill">Mandrill</option>
+            <option value="Postmark">Postmark</option>
+            <option value="QQ">QQ</option>
+            <option value="QQex">QQex (Tencent Business Email)</option>
+            <option value="SendGrid">SendGrid</option>
+            <option value="SendCloud">SendCloud</option>
+            <option value="SES">SES</option>
+            <option value="Yahoo">Yahoo</option>
+            <option value="yandex">yandex</option>
+            <option value="Zoho">Zoho</option>
+            <option value="">User defined</option>
+        </select></td>
+        <td class="translate"></td>
+    </tr>
+    <tr id="_email_host" style="display: none">
+        <td class="translate">Host:</td>
+        <td><input id="email_host" type="text" size="50"/></td>
+        <td class="translate"></td>
+    </tr>
+    <tr id="_email_port" style="display: none">
+        <td class="translate">Port:</td>
+        <td><input id="email_port" type="text" size="5"/></td>
+        <td class="translate"></td>
+    </tr>
+    <tr id="_email_secure" style="display: none">
+        <td class="translate">SSL connection:</td>
+        <td><input type="checkbox" id="email_secure"/></td>
+        <td class="translate">Is secure connection</td>
+    </tr>
+
+    <tr>
+        <td class="translate">User:</td>
+        <td><input id="email_user" type="text" size="30"/></td>
+        <td class="translate"></td>
+    </tr>
+    <tr>
+        <td class="translate">Password:</td>
+        <td><input id="email_password" type="text" size="30"/></td>
+        <td class="translate"></td>
+    </tr>
+    <tr>
+        <td colspan='3'><br><h2 class="translate">Defaults</h2></td>
+    </tr>
+    <tr>
+        <td class="translate">From:</td>
+        <td><input id="email_from" type="text" size="30"/></td>
+        <td class="translate"></td>
+    </tr>
+    <tr>
+        <td class="translate">To:</td>
+        <td><input id="email_to" type="text" size="30"/></td>
+        <td class="translate"></td>
+    </tr>
+    <tr>
+        <td class="translate">Subject:</td>
+        <td><input id="email_subject" type="text" size="50"/></td>
+        <td class="translate"></td>
+    </tr>
+</table>
+
+<script type="text/javascript">
+    var adapterWords = {
+        "Connection settings":{"en": "Connection settings", "de": "Verbindungseinstellungen", "ru": "Настройки соединения"},
+        "Transport:"     :{"en": "Transport:",     "de": "Transport:",      "ru": "Протокол:"},
+        "Service:"       :{"en": "Service:",       "de": "Service:",        "ru": "Сервисе:"},
+        "Host:"          :{"en": "Host:",          "de": "Host:",           "ru": "Хост:"},
+        "Port:"          :{"en": "Port:",          "de": "Port:",           "ru": "Порт:"},
+        "SSL connection:":{"en": "SSL connection", "de": "SSL Verbindung:", "ru": "SSL соединиение:"},
+        "User:"          :{"en": "User:",          "de": "Anwender:",       "ru": "Пользователь:"},
+        "Password:"      :{"en": "Password:",      "de": "Kennwort:",       "ru": "Пароль:"},
+        "Defaults"       :{"en": "Defaults",       "de": "Voreinstellung",  "ru": "Значения по умолчанию"},
+        "From:"          :{"en": "From:",          "de": "Von:",            "ru": "От:"},
+        "To:"            :{"en": "To:",            "de": "Nach:",           "ru": "Кому:"},
+        "Subject:"       :{"en": "Subject:",       "de": "Thema:",          "ru": "Тема:"}
+    };
+
+    function saveSettings () {
+        console.log (currentAdapterSettings);
+        updateAdapterSettings();
+    }
+    console.log (currentAdapterSettings);
+
+    $("#email_transport option[value='"+currentAdapterSettings.transport+"']").attr("selected", true);
+
+    $("#email_transport").change(function () {
+        currentAdapterSettings.transport = $("#email_transport option:selected").val();
+        saveSettings();
+    });
+    $("#email_service option[value='"+(currentAdapterSettings.transportOptions.service || '')+"']").attr("selected", true);
+
+    if (!currentAdapterSettings.transportOptions.service){
+        document.getElementById ('_email_host').style.display = '';
+        document.getElementById ('_email_port').style.display = '';
+        document.getElementById ('_email_secure').style.display = '';
+        $("#email_host").val(currentAdapterSettings.transportOptions.host);
+        $("#email_port").val(currentAdapterSettings.transportOptions.port);
+        $('#email_secure').attr('checked', currentAdapterSettings.transportOptions.secureConnection);
+    }
+
+    $("#email_service").change(function () {
+        var service = $("#email_service option:selected").val();
+        if (!service){
+            document.getElementById ('_email_host').style.display   = '';
+            document.getElementById ('_email_port').style.display   = '';
+            document.getElementById ('_email_secure').style.display = '';
+
+            currentAdapterSettings.transportOptions.host = $("#email_host").val();
+            currentAdapterSettings.transportOptions.port = $("#email_port").val();
+            currentAdapterSettings.transportOptions.secureConnection = $('#email_secure').is(':checked');
+            if (typeof currentAdapterSettings.transportOptions.service !== 'undefined') {
+                delete currentAdapterSettings.transportOptions.service;
+            }
+        } else {
+            currentAdapterSettings.transportOptions.service = service;
+
+            delete currentAdapterSettings.transportOptions.host;
+            delete currentAdapterSettings.transportOptions.port;
+            delete currentAdapterSettings.transportOptions.secureConnection;
+
+            document.getElementById ('_email_host').style.display   = 'none';
+            document.getElementById ('_email_port').style.display   = 'none';
+            document.getElementById ('_email_secure').style.display = 'none';
+        }
+        saveSettings();
+    });
+
+    $("#email_host").change(function () {
+        currentAdapterSettings.transportOptions.host = $("#email_host").val();
+        saveSettings();
+    });
+
+    $("#email_port").change(function () {
+        currentAdapterSettings.transportOptions.port = $("#email_port").val();
+        saveSettings();
+    });
+
+    $("#email_secure").change(function () {
+        currentAdapterSettings.transportOptions.secureConnection = $('#email_secure').is(':checked');
+        saveSettings();
+    });
+
+    $("#email_user").val(currentAdapterSettings.transportOptions.auth.user);
+
+    $("#email_user").change(function () {
+        currentAdapterSettings.transportOptions.auth.user = $("#email_user").val();
+        saveSettings();
+    });
+
+    $("#email_password").val(currentAdapterSettings.transportOptions.auth.pass);
+
+    $("#email_password").change(function () {
+        currentAdapterSettings.transportOptions.auth.pass = $("#email_password").val();
+        saveSettings();
+    });
+
+    $("#email_from").val(currentAdapterSettings.defaults.from);
+
+    $("#email_from").change(function () {
+        currentAdapterSettings.defaults.from = $("#email_from").val();
+        saveSettings();
+    });
+
+    $("#email_to").val(currentAdapterSettings.defaults.to);
+
+    $("#email_to").change(function () {
+        currentAdapterSettings.defaults.to = $("#email_to").val();
+        saveSettings();
+    });
+
+    $("#email_subject").val(currentAdapterSettings.defaults.subject);
+
+    $("#email_subject").change(function () {
+        currentAdapterSettings.defaults.subject = $("#email_subject").val();
+        saveSettings();
+    });
+
+    translateAll (mainSettings.language, adapterWords);
+
+</script>

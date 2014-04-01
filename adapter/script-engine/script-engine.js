@@ -13,51 +13,35 @@
  *
  */
 
-var cAdapterMask  = 0xFFF;
-var cAdapterShift = 20; // Bits
-var cObjectsMask  = 0xFFFFF;
+var metaObjects = [],// Object tree
+    metaIndex   = {},// Mapping
+    dataValues  = [];// Values of the objects
 
-var cAdapterId    = 0;
-var cObjectId     = 1;
-var cCombyId      = 2;
+var fs      = require('fs'),
+    request = require("request"),
+    wol     = require('wake_on_lan'),
+    c       = require(__dirname+'/www/lib/js/sysConst.js');
 
-// Constants of object types
-var cObjTypeDevice  = 1;
-var cObjTypeChannel = 2;
-var cObjTypePoint   = 3;
-
-var dataObjects = [],// Object tree
-    dataIndex   = {},// Values of the objects
-    dataValues  = [];// Mapping
-
-var fs =        require('fs'),
-    request =   require("request"),
-    wol =       require('wake_on_lan');
 
 var scriptEngine = {
     util:           require('util'),
-    settings:       require(__dirname+'/settings.js'),
     logger:         require(__dirname+'/logger.js'),
     io:             require('socket.io-client'),
     scheduler:      require('node-schedule'),
     suncalc:        require('suncalc'),
     fs:             fs,
-    socket: {},
-    subscribers: [],
-    schedules: [],
-    poSettings: {},
-    emailTransport: {},
+    socket:         {},
+    subscribers:    [],
+    schedules:      [],
 
     init: function () {
         var that = this;
-        if (that.settings.ioListenPort) {
-            that.socket = that.io.connect("127.0.0.1", {
-                port: that.settings.ioListenPort
-            });
-        } else if (settings.ioListenPortSsl) {
-            that.socket = that.io.connect("127.0.0.1", {
-                port: that.settings.ioListenPortSsl,
-                secure: true
+
+        // Connect to server
+        if (process.env.serverPort) {
+            that.socket = io.connect(process.env.serverIp || "127.0.0.1", {
+                port:   process.env.serverPort,
+                secure: process.env.serverIsSec
             });
         } else {
             process.exit();
@@ -69,7 +53,7 @@ var scriptEngine = {
 
         that.socket.on('getAdapterId', function (callback) {
             if (callback) {
-                callback (1/*cSriptId*/);
+                callback (process.env.adapterId);
             }
         });
 
@@ -79,11 +63,13 @@ var scriptEngine = {
 
         // Fetch Data
         that.socket.emit('getIndex', function(index) {
-            that.logger.info("script-engine fetched dataIndex")
-            dataIndex = index;
+            that.logger.info("script-engine fetched metaIndex")
+            metaIndex = index;
+
             that.socket.emit('getObjects', function(objects) {
-                that.logger.info("script-engine fetched dataObjects")
-                dataObjects = objects;
+                that.logger.info("script-engine fetched metaObjects")
+                metaObjects = objects;
+
                 that.socket.emit('getPointValues', function(dps) {
                     that.logger.info("script-engine fetched dataValues")
                     dataValues = dps;
@@ -92,27 +78,6 @@ var scriptEngine = {
                 });
             });
         });
-
-        // Pushover Adapter
-        if (scriptEngine.settings.adapters.pushover && scriptEngine.settings.adapters.pushover.enabled) {
-            var pushover   = require( 'pushover-notifications');
-
-            scriptEngine.poSettings = scriptEngine.settings.adapters.pushover.settings;
-
-            scriptEngine.pushover = new pushover( {
-                user: scriptEngine.poSettings.user,
-                token: scriptEngine.poSettings.token
-            });
-        }
-
-        // Email Adapter
-        if (scriptEngine.settings.adapters.email && scriptEngine.settings.adapters.email.enabled) {
-            var nodemailer = require("nodemailer");
-            scriptEngine.emailTransport = nodemailer.createTransport(scriptEngine.settings.adapters.email.settings.transport,
-                scriptEngine.settings.adapters.email.settings.transportOptions
-            );
-        }
-
     },
     initEventHandler: function () {
         var that = this;
@@ -131,71 +96,71 @@ var scriptEngine = {
                 roles     = [],
                 locations = [];
 
-            if (dataObjects[id[0/*cAdapterId*/]] && dataObjects[id[0/*cAdapterId*/]][id[1]]) {
+            if (metaObjects[id[0/*cAdapterId*/]] && metaObjects[id[0/*cAdapterId*/]][id[1]]) {
                 adapterId = id[0/*cAdapterId*/];
-                adapterType = dataIndex.adapterInfo[adapterId].type;
-                name    = dataObjects[id[0/*cAdapterId*/]][id[1]].name;
-                parent  = dataObjects[id[0/*cAdapterId*/]][id[1]].parent;
-                adapter = dataIndex.adapter[id[0/*cAdapterId*/]];
+                adapterType = metaIndex.adapterInfo[adapterId].type;
+                name    = metaObjects[id[0/*cAdapterId*/]][id[1]].name;
+                parent  = metaObjects[id[0/*cAdapterId*/]][id[1]].parent;
+                adapter = metaIndex.adapter[id[0/*cAdapterId*/]];
             }
 
-            if (parent && dataObjects[id[0/*cAdapterId*/]][parent]) {
-                if (dataObjects[id[0/*cAdapterId*/]][parent].type == cObjTypeChannel) {
-                    channelName = dataObjects[id[0/*cAdapterId*/]][parent].name;
-                    channelType = dataObjects[id[0/*cAdapterId*/]][parent].specType;
+            if (parent && metaObjects[id[0/*cAdapterId*/]][parent]) {
+                if (metaObjects[id[0/*cAdapterId*/]][parent].type == cObjTypeChannel) {
+                    channelName = metaObjects[id[0/*cAdapterId*/]][parent].name;
+                    channelType = metaObjects[id[0/*cAdapterId*/]][parent].specType;
 
-                    var device = dataObjects[id[0/*cAdapterId*/]][parent].parent;
+                    var device = metaObjects[id[0/*cAdapterId*/]][parent].parent;
                     if (device) {
-                        deviceName = (dataObjects[id[0/*cAdapterId*/]][device] ? dataObjects[id[0]][device].name     : undefined);
-                        deviceType = (dataObjects[id[0/*cAdapterId*/]][device] ? dataObjects[id[0]][device].specType : undefined);
+                        deviceName = (metaObjects[id[0/*cAdapterId*/]][device] ? metaObjects[id[0/*cAdapterId*/]][device].name     : undefined);
+                        deviceType = (metaObjects[id[0/*cAdapterId*/]][device] ? metaObjects[id[0/*cAdapterId*/]][device].specType : undefined);
                     }
                 }
                 else
-                if (dataObjects[parent].type == cObjTypeDevice) {
+                if (metaObjects[parent].type == cObjTypeDevice) {
                     // Device
-                    var device = dataObjects[id[0/*cAdapterId*/]][parent].parent;
+                    var device = metaObjects[id[0/*cAdapterId*/]][parent].parent;
                     if (device) {
-                        deviceName = (dataObjects[id[0/*cAdapterId*/]][device] ? dataObjects[id[0/*cAdapterId*/]][device].name     : undefined);
-                        deviceType = (dataObjects[id[0/*cAdapterId*/]][device] ? dataObjects[id[0/*cAdapterId*/]][device].specType : undefined);
+                        deviceName = (metaObjects[id[0/*cAdapterId*/]][device] ? metaObjects[id[0/*cAdapterId*/]][device].name     : undefined);
+                        deviceType = (metaObjects[id[0/*cAdapterId*/]][device] ? metaObjects[id[0/*cAdapterId*/]][device].specType : undefined);
                     }
                 }
                 var ii = id[1];
                 // Find locations
                 while (ii) {
-                    if (dataObjects[id[0/*cAdapterId*/]][ii].location) {
-                        if (typeof dataObjects[id[0/*cAdapterId*/]][ii].location == "array") {
-                            for (var k = 0, len = dataObjects[id[0/*cAdapterId*/]][ii].location.length; k < len; k++) {
-                                if (dataObjects[id[0/*cAdapterId*/]][ii].location[k]) {
-                                    locations.push (dataObjects[id[0/*cAdapterId*/]][ii].location[k]);
+                    if (metaObjects[id[0/*cAdapterId*/]][ii].location) {
+                        if (typeof metaObjects[id[0/*cAdapterId*/]][ii].location == "array") {
+                            for (var k = 0, len = metaObjects[id[0/*cAdapterId*/]][ii].location.length; k < len; k++) {
+                                if (metaObjects[id[0/*cAdapterId*/]][ii].location[k]) {
+                                    locations.push (metaObjects[id[0/*cAdapterId*/]][ii].location[k]);
                                 }
                             }
                         }
                         else
-                            locations.push (dataObjects[id[0]][ii].location);
+                            locations.push (metaObjects[id[0]][ii].location);
                         break;
                     }
-                    ii = dataObjects[id[0/*cAdapterId*/]][ii].parent;
+                    ii = metaObjects[id[0/*cAdapterId*/]][ii].parent;
                 }
                 // Fund roles
                 ii = id[1];
                 while (ii) {
-                    if (dataObjects[id[0/*cAdapterId*/]][ii].role) {
-                        if (typeof dataObjects[id[0/*cAdapterId*/]][ii].role == "array") {
-                            for (var k = 0, len = dataObjects[id[0/*cAdapterId*/]][ii].role.length; k < len; k++) {
-                                if (dataObjects[id[0/*cAdapterId*/]][ii].role[k]) {
-                                    roles.push (dataObjects[id[0/*cAdapterId*/]][ii].role[k]);
+                    if (metaObjects[id[0/*cAdapterId*/]][ii].role) {
+                        if (typeof metaObjects[id[0/*cAdapterId*/]][ii].role == "array") {
+                            for (var k = 0, len = metaObjects[id[0/*cAdapterId*/]][ii].role.length; k < len; k++) {
+                                if (metaObjects[id[0/*cAdapterId*/]][ii].role[k]) {
+                                    roles.push (metaObjects[id[0/*cAdapterId*/]][ii].role[k]);
                                 }
                             }
                         }
                         else
-                            roles.push (dataObjects[id[0/*cAdapterId*/]][ii].role);
+                            roles.push (metaObjects[id[0/*cAdapterId*/]][ii].role);
                         break;
                     }
-                    ii = dataObjects[id[0]][ii].parent;
+                    ii = metaObjects[id[0]][ii].parent;
                 }
             }
             else {
-                log("script-engine error: parent " + parent + " of " + dataObjects[id[0/*cAdapterId*/]][id[1]].name + "does not exist");
+                log("script-engine error: parent " + parent + " of " + metaObjects[id[0/*cAdapterId*/]][id[1]].name + "does not exist");
                 parent = null;
             }
 
@@ -744,7 +709,6 @@ function runScript(path) {
     } catch (e) {
         scriptEngine.logger.error("script-engine "+path+" "+e);
     }
-
 }
 
 // Global Stuff for use in Scripts
@@ -794,15 +758,34 @@ function schedule(pattern, callback) {
     }
 }
 
-function setState (adapterId, id, val, callback) {
-    scriptEngine.socket.emit("setAnyPointValue", [adapterId, id, val], function () {
-        if (callback) {
-            callback();
+function getAdapterId (adapter) {
+    var adapterId;
+    if (typeof adapter == 'string' && adapter.length > 1) {
+        if (adapter[0] >= '0' && adapter[0] <= '9') {
+            adapterId = parseInt (adapter);
+        } else {
+            adapterId = metaIndex.adapter[adapter];
         }
-    });
+    } else {
+        adapterId = adapter;
+    }
+    return adapterId;
 }
 
-function getState (adapterId, id, dpType) {
+function setValue (adapter, id, val, ack, callback) {
+    var adapterId = getAdapterId(adapter);
+    if (adapterId) {
+        scriptEngine.socket.emit("setPointValue", (adapterId << c.cAdapterShift | id), val, null, ack || false, function (obj) {
+            if (callback) {
+                callback(obj);
+            }
+        });
+    }
+}
+// depricated
+var setState = setValue;
+function getValue (adapter, id, dpType) {
+    var adapterId = getAdapterId(adapter);
     var dp = dataValues[adapterId][findDatapoint(adapterId, id, dpType)];
     if (dp) {
         return dp.val;
@@ -810,17 +793,15 @@ function getState (adapterId, id, dpType) {
         return null;
     }
 }
+// depricated
+var getState = getValue;
 
 function getTimestamp(adapterId, id) {
     return dataValues[adapterId][id].ts;
 }
-
+// depricated => use setValue ('ccu', id, true);
 function executeProgram(id, callback) {
-    scriptEngine.socket.emit("executeProgram", id, function () {
-        if (callback) {
-            callback();
-        }
-    });
+    setValue('ccu', id, true, false, callback);
 }
 
 function execCmd(cmd, callback) {
@@ -831,8 +812,16 @@ function execCmd(cmd, callback) {
     })
 }
 
-function alarmReceipt(adapterId, id) {
-    scriptEngine.socket.emit("cmdToAdapter", adapterId, "alarmReceipt", id);
+function toAdapter(cmd, arg, callback) {
+    scriptEngine.socket.emit("toAdapter", cmd, arg, function(data) {
+        if (callback) {
+            callback(data);
+        }
+    });
+}
+// depricated => use setValue ('ccu', id, true);
+function alarmReceipt (id) {
+    setValue ('ccu', id, true);
 }
 
 function setObject(id, obj, callback) {
@@ -851,76 +840,42 @@ function readdir(path, callback) {
     });
 }
 
+// for backward compatibility
 function pushover(obj) {
-    if (scriptEngine.settings.adapters.pushover && scriptEngine.settings.adapters.pushover.enabled) {
-        var msg = {};
-        msg.message = obj.message || scriptEngine.poSettings.message;
-        msg.title = obj.title || scriptEngine.poSettings.title;
-        msg.sound = obj.sound || scriptEngine.poSettings.sound;
-        msg.priority = obj.priority || scriptEngine.poSettings.priority;
-        msg.url = obj.url || scriptEngine.poSettings.url;
-        msg.url_title = obj.url_title || scriptEngine.poSettings.url_title;
-        msg.device = obj.device || scriptEngine.poSettings.device;
-        scriptEngine.pushover.send( msg, function( err, result ) {
-            if (err) {
-                scriptEngine.logger.error("script-engine pushover error "+JSON.stringify(err));
-                return false;
-            } else {
-                return true;
-            }
-        });
-    } else {
-        scriptEngine.logger.error("script-engine pushover adapter not enabled");
-    }
+    toAdapter ('pushover', 'send', obj);
 }
 
+// for backward compatibility
 function email(obj) {
-    if (scriptEngine.settings.adapters.email && scriptEngine.settings.adapters.email.enabled) {
-
-        var msg = {};
-        msg.from = obj.from || scriptEngine.settings.adapters.email.settings.defaults.from;
-        msg.to = obj.to || scriptEngine.settings.adapters.email.settings.defaults.to;
-        msg.subject = obj.subject || scriptEngine.settings.adapters.email.settings.defaults.subject;
-        msg.text = obj.text || scriptEngine.settings.adapters.email.settings.defaults.text;
-
-        scriptEngine.emailTransport.sendMail(msg, function(error, response){
-            if (error) {
-                scriptEngine.logger.error("script-engine email error "+JSON.stringify(error))
-            } else {
-                scriptEngine.logger.info("script-engine email sent to "+msg.to);
-            }
-        });
-    } else {
-        scriptEngine.logger.error("script-engine email adapter not enabled");
-    }
+    toAdapter('email', 'send', obj);
 }
 
-function findDatapoint (needle, hssdp) {
-    if (dataValues[needle] === undefined) {
-        if (dataIndex.Name[needle]) {
+function findDatapoint (adapterId, needle, hssdp) {
+    if (dataValues[adapterId][needle] === undefined) {
+        if (metaIndex.name[adapterId][needle]) {
             // Get by Name
-            needle = dataIndex.Name[needle][0];
+            needle = metaIndex.name[adapterId][needle];
             if (hssdp) {
                 // Get by Name and Datapoint
-                if (dataObjects[needle].DPs) {
-                    return dataObjects[needle].DPs[hssdp];
+                if (metaObjects[adapterId][needle].DPs) {
+                    return metaObjects[adapterId][needle].DPs[hssdp];
                 } else {
                     return false;
                 }
             }
-        } else if (dataIndex.Address[needle]) {
-            needle = dataIndex.Address[needle][0];
+        } else if (metaIndex.address[adapterId][needle]) {
+            needle = metaIndex.address[adapterId][needle][0];
             if (hssdp) {
                 // Get by Channel-Address and Datapoint
-                if (dataObjects[needle].DPs && dataObjects[needle].DPs[hssdp]) {
-                    needle = dataObjects[needle].DPs[hssdp];
+                if (metaObjects[adapterId][needle].DPs && metaObjects[adapterId][needle].DPs[hssdp]) {
+                    needle = metaObjects[adapterId][needle].DPs[hssdp];
                 }
             }
         } else if (needle.toString().match(/[a-zA-Z-]+\.[0-9A-Za-z-]+:[0-9]+\.[A-Z_]+/)) {
             // Get by full BidCos-Address
             addrArr = needle.split(".");
-            if (dataIndex.Address[addrArr[1]]) {
-                needle = dataObjects[dataIndex.Address[addrArr[1]]].DPs[addArr[2]];
+            if (metaIndex.address[adapterId][addrArr[1]]) {
+                needle = metaObjects[metaIndex.address[adapterId][addrArr[1]]].DPs[addArr[2]];
             }
         } else {
             return false;

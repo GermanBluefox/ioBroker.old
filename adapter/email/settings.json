@@ -1,0 +1,20 @@
+{
+    "name": "email",
+    "description": "Email client",
+    "desiredId": 6,
+    "settings": {
+        "transport": "SMTP",
+        "transportOptions": {
+            "service": "Gmail",
+            "auth": {
+                "user": "wyx@googlemail.com",
+                "pass": "xxxxxx"
+            }
+        },
+        "defaults": {
+            "from":    "test <test@test.com>",
+            "to":      "abcdef@googlemail.com",
+            "subject": "Homander"
+        }
+    }
+}

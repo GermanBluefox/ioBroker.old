@@ -517,7 +517,7 @@ $(document).ready(function () {
         }
     });
 
-    socket.on('reload', function() {
+    socket.on('reloadDataReady', function() {
         window.location.reload();
     });
 
@@ -887,6 +887,7 @@ $(document).ready(function () {
             $("#grid_datapoints").trigger("reloadGrid");
         });
     }
+
     function getWord (word) {
         return "<span class='translate' data-lang='"+((mainSettings && mainSettings.language) ? mainSettings.language : 'en')+"'>"+translateWord(word)+"</span>";
     }
@@ -1035,7 +1036,7 @@ $(document).ready(function () {
             adapterId = cUserAdapter;
             // Find free index
             while (mainSettings.adapters[adapterId]) adapterId++;
-            if (adapterId > c.cAdapterMask) {
+            if (adapterId > cAdapterMask) {
                 console.log ("Too many adapters");
                 return;
             }

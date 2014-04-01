@@ -51,35 +51,10 @@ var fs =        require('fs-extra'),
     extDone = false,
     authHash = "";
 
-// Constants of object types
-/*var cObjTypeDevice  = 1;
-var cObjTypeChannel = 2;
-var cObjTypePoint   = 3;
-
-// Constants reserved adapters
-var cSystem       = 1;
-var cScript       = 2;
-var cUserAdapter  = 3;
-
-// Variables in cSystem
-var cSystemLanguage    = 1;
-var cSystemReady       = 2;
-var cSystemWebServerUp = 3;
-
-var cAdapterMask  = 0xFFF;
-var cAdapterShift = 20; // Bits
-var cObjectsMask  = 0xFFFFF;
-
-
-var cAdapterId    = 0;
-var cObjectId     = 1;
-var cCombyId      = 2;
-*/
-
 var socketList    = [], // Array of connected clients. It can be adapters, GUI
-    dataObjects   = [], // Object tree
+    metaObjects   = [], // Object tree
     dataValues    = [], // Values of the objects
-    dataIndex     = {   // Mapping
+    metaIndex     = {   // Mapping
         name:     [],   // [adpaterId] - {"name of object1": id, "name of object2": id}
         location: [],   // "living room" : [id1, id2, id3], "wc" : [id4, id2, id5] - ids are sorted
         role:     [],   // "Media" : [id1, id4], "Light" : [id6, id7] - ids are sorted
@@ -150,12 +125,8 @@ if (!settings.adapters) {
 }
 settings.adapters[c.cSystem] = {name: "System", parent: c.cSystem, description: "Homander system variables"};
 
-// Create script variables
-dataValues[c.cScript] = [];
-settings.adapters[c.cScript] = {name: "Script", parent: c.cScript, description: "User script variables", multiData: true};
-
 loadPersistentObjects();
-loaddataValues();
+loadDataValues();
 createSystemVariables ();
 initWebserver();
 initAdapters();
@@ -204,10 +175,10 @@ function createSystemVariables () {
 
 function updateStatus () {
     if (io) {
-        io.sockets.emit("updateStatus", statuses);
+        io.sockets.emit('updateStatus', statuses);
     }
     if (ioSsl) {
-        ioSsl.sockets.emit("updateStatus", statuses);
+        ioSsl.sockets.emit('updateStatus', statuses);
     }
 }
 
@@ -387,8 +358,8 @@ function addObject (adapterID, objID, obj, value) {
         }
     }
 
-    if (!dataObjects[adapterID]) {
-        dataObjects[adapterID] = [];
+    if (!metaObjects[adapterID]) {
+        metaObjects[adapterID] = [];
         dataValues [adapterID] = [];
     }
 
@@ -410,12 +381,12 @@ function addObject (adapterID, objID, obj, value) {
     }
     else {
         // Add object to list by parent
-        if (dataObjects[adapterID][obj.parent]) {
-            if (!dataObjects[adapterID][obj.parent].objects) {
-                dataObjects[adapterID][obj.parent].objects = [];
+        if (metaObjects[adapterID][obj.parent]) {
+            if (!metaObjects[adapterID][obj.parent].children) {
+                metaObjects[adapterID][obj.parent].children = [];
             }
-            if (dataObjects[adapterID][obj.parent].objects.indexOf (objID) == -1) {
-                dataObjects[adapterID][obj.parent].objects.push(objID);
+            if (metaObjects[adapterID][obj.parent].children.indexOf (objID) == -1) {
+                metaObjects[adapterID][obj.parent].children.push(objID);
             }
         }
         else {
@@ -423,7 +394,7 @@ function addObject (adapterID, objID, obj, value) {
         }
     }
 
-    dataObjects[adapterID][objID] = obj;
+    metaObjects[adapterID][objID] = obj;
 
     if (obj.type == c.cObjTypePoint) {
         if (obj.isLogged === undefined) {
@@ -434,79 +405,79 @@ function addObject (adapterID, objID, obj, value) {
         if (value !== undefined) {
             setPointValue (indexObject, value);
         }
-        insertSorted(dataIndex.point, indexObject);
+        insertSorted(metaIndex.point, indexObject);
     }
     else
     if (obj.type == c.cObjTypeDevice) {
-        insertSorted(dataIndex.device, indexObject);
+        insertSorted(metaIndex.device, indexObject);
     }
     if (obj.type == c.cObjTypeChannel) {
-        insertSorted(dataIndex.channel, indexObject);
+        insertSorted(metaIndex.channel, indexObject);
     }
     // Arrange indexes
     // Name
-    if (!dataIndex.name[adapterID]) {
-        dataIndex.name[adapterID] = [];
+    if (!metaIndex.name[adapterID]) {
+        metaIndex.name[adapterID] = [];
     }
 
-    if (dataIndex.name[adapterID][obj.name] !== undefined && dataIndex.name[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
+    if (metaIndex.name[adapterID][obj.name] !== undefined && metaIndex.name[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
         logger.warn("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has not an unique name");
     }
     else {
-        dataIndex.name[adapterID][obj.name] = indexObject;
+        metaIndex.name[adapterID][obj.name] = indexObject;
     }
     // Location
     if (obj.location) {
-        if (dataIndex.location[obj.location] === undefined) {
-            dataIndex.location[obj.location] = [];
+        if (metaIndex.location[obj.location] === undefined) {
+            metaIndex.location[obj.location] = [];
         }
         for (var i = 0, len = obj.location; i < len; i++) {
             if (obj.location[i]) {
-                insertSorted (dataIndex.location[obj.location[i]], indexObject);
+                insertSorted (metaIndex.location[obj.location[i]], indexObject);
 
             }
         }
     }
     // favorite
     if (obj.favorite) {
-        if (dataIndex.favorite[obj.favorite] === undefined) {
-            dataIndex.favorite[obj.favorite] = [];
+        if (metaIndex.favorite[obj.favorite] === undefined) {
+            metaIndex.favorite[obj.favorite] = [];
         }
         for (var i = 0, len = obj.favorite; i < len; i++) {
             if (obj.favorite[i]) {
-                insertSorted (dataIndex.favorite[obj.favorite[i]], indexObject);
+                insertSorted (metaIndex.favorite[obj.favorite[i]], indexObject);
 
             }
         }
     }
     // role
     if (obj.role) {
-        if (dataIndex.role[obj.role] === undefined) {
-            dataIndex.role[obj.role] = [];
+        if (metaIndex.role[obj.role] === undefined) {
+            metaIndex.role[obj.role] = [];
         }
         for (var i = 0, len = obj.role; i < len; i++) {
             if (obj.role[i]) {
-                insertSorted (dataIndex.role[obj.role[i]], indexObject);
+                insertSorted (metaIndex.role[obj.role[i]], indexObject);
             }
         }
     }
     // specType
     if (obj.specType) {
-        if (dataIndex.specType[obj.specType] === undefined) {
-            dataIndex.specType[obj.specType] = [];
+        if (metaIndex.specType[obj.specType] === undefined) {
+            metaIndex.specType[obj.specType] = [];
         }
-        insertSorted (dataIndex.specType[obj.specType], indexObject);
+        insertSorted (metaIndex.specType[obj.specType], indexObject);
     }
     // address
     if (obj.address) {
-        if (!dataIndex.address[adapterID]) {
-            dataIndex.address[adapterID] = [];
+        if (!metaIndex.address[adapterID]) {
+            metaIndex.address[adapterID] = [];
         }
-        if (dataIndex.address[adapterID][obj.name] !== undefined && dataIndex.address[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
+        if (metaIndex.address[adapterID][obj.name] !== undefined && metaIndex.address[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
             logger.warn("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has not an unique address");
         }
         else {
-            dataIndex.address[adapterID][obj.name] = indexObject;
+            metaIndex.address[adapterID][obj.name] = indexObject;
         }
     }
     logger.verbose("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " inserted succsessfully");
@@ -525,14 +496,14 @@ function sendEvent (id, value) {
             var adapterId = socketList[i].adapterId;
             // Adapters => GUI
             if (value.ack) {
-                if (!adapterId || dataIndex.adapterInfo[adapterId].multiData) {
-                    socketList[i].emit ("event", id[2/*cCombyId*/], value);
+                if (!adapterId || metaIndex.adapterInfo[adapterId].multiData) {
+                    socketList[i].emit('event', id[2/*cCombyId*/], value);
                 }
             }
             // GUI => Adapters
             else {
-                if (id[0/*cAdapterId*/] == adapterId || dataIndex.adapterInfo[adapterId].multiData) {
-                    socketList[i].emit ("event", (!adapterId || !dataIndex.adapterInfo[adapterId] || dataIndex.adapterInfo[adapterId].multiData) ? id[2/*cCombyId*/] : id[1/*cObjectId*/], value);
+                if (id[0/*cAdapterId*/] == adapterId || metaIndex.adapterInfo[adapterId].multiData) {
+                    socketList[i].emit('event', (!adapterId || !metaIndex.adapterInfo[adapterId] || metaIndex.adapterInfo[adapterId].multiData) ? id[2/*cCombyId*/] : id[1/*cObjectId*/], value);
                 }
             }
         }
@@ -558,18 +529,18 @@ function getId (id) {
             }
             else { // this is name or address
                 // extract adapter ID
-                var adapterID = id.substring (0, p);
+                var adapterId = id.substring (0, p);
                 id = id.substring(p + 1);
-                if (adapterID.length > 0 && adapterID[0] >= '0' && adapterID[0] <= '9') {
-                    adapterID = parseInt (adapterID);
-                    if (!settings.adapters[adapterID]){
+                if (adapterId.length > 0 && adapterId[0] >= '0' && adapterId[0] <= '9') {
+                    adapterId = parseInt (adapterId);
+                    if (!settings.adapters[adapterId]){
                         // invalid adapter
                         log.warn ("getId requested invalid adapter " + JSON.stringify (id));
                         return null;
                     }
                 } else {
-                    if (dataIndex.adapter[adapterID]) {
-                        adapterID = dataIndex.adapter[adapterID];
+                    if (metaIndex.adapter[adapterId]) {
+                        adapterId = metaIndex.adapter[adapterId];
                     }
                     else {
                         // invalid adapter
@@ -578,9 +549,9 @@ function getId (id) {
                     }
                 }
                 // Try to find name
-                var _id = dataIndex.name[adapterID][id];
+                var _id = metaIndex.name[adapterId][id];
                 if (_id === undefined) {
-                    _id = dataIndex.address[adapterID][id];
+                    _id = metaIndex.address[adapterId][id];
                     if (_id === undefined) {
                         if (id.length > 0 && id[0] >= '0' && id[0] <= '9') {
                             id = parseInt (id);
@@ -592,7 +563,7 @@ function getId (id) {
                         }
                     }
                 }
-                id = [adapterID, id];
+                id = [adapterId, id];
             }
         }
     }
@@ -600,6 +571,7 @@ function getId (id) {
     if (!id[2]) id[2] = id[0] << c.cAdapterShift | id[1];
     return id;
 }
+
 // Set new value of point. If ack == true, this is just an update, if false - this is control direction
 function setPointValue(id, value) {
     // Convert id if not array
@@ -620,7 +592,7 @@ function setPointValue(id, value) {
     // Get old value to compare
     var oldval = dataValues[id[0]][id[1]];
 
-    logger.verbose("setPointValue "+ settings.adapters[id[0]].name + "." +dataObjects[id[0]][id[1]].name + " " + JSON.stringify(oldval)+" -> "+JSON.stringify(value));
+    logger.verbose("setPointValue "+ settings.adapters[id[0]].name + "." +metaObjects[id[0]][id[1]].name + " " + JSON.stringify(oldval)+" -> "+JSON.stringify(value));
 
     if (!oldval) {
         // First value
@@ -686,30 +658,30 @@ function uploadParser(req, res, next) {
 
 function findDatapoint (needle, hssdp) {
     if (!dataValues[needle]) {
-        if (dataIndex.Name[needle]) {
+        if (metaIndex.Name[needle]) {
             // Get by Name
-            needle = dataIndex.Name[needle][0];
+            needle = metaIndex.Name[needle][0];
             if (hssdp) {
                 // Get by Name and Datapoint
-                if (dataObjects[needle].DPs) {
-                    return dataObjects[needle].DPs[hssdp];
+                if (metaObjects[needle].DPs) {
+                    return metaObjects[needle].DPs[hssdp];
                 } else {
                     return false;
                 }
             }
-        } else if (dataIndex.Address[needle]) {
-            needle = dataIndex.Address[needle][0];
+        } else if (metaIndex.Address[needle]) {
+            needle = metaIndex.Address[needle][0];
             if (hssdp) {
                 // Get by Channel-Address and Datapoint
-                if (dataObjects[needle].DPs && dataObjects[needle].DPs[hssdp]) {
-                    needle = dataObjects[needle].DPs[hssdp];
+                if (metaObjects[needle].DPs && metaObjects[needle].DPs[hssdp]) {
+                    needle = metaObjects[needle].DPs[hssdp];
                 }
             }
         } else if (needle.match(/[a-zA-Z-]+\.[0-9A-Za-z-]+:[0-9]+\.[A-Z_]+/)) {
             // Get by full BidCos-Address
             addrArr = needle.split(".");
-            if (dataIndex.Address[addrArr[1]]) {
-                needle = dataObjects[dataIndex.Address[addrArr[1]]].DPs[addArr[2]];
+            if (metaIndex.Address[addrArr[1]]) {
+                needle = metaObjects[metaIndex.Address[addrArr[1]]].DPs[addArr[2]];
             }
         } else {
             return false;
@@ -809,9 +781,9 @@ function restApi(req, res) {
                     response.timestamp  = dataValues[dp_][1];
                     response.lastchange = dataValues[dp_][3];
                 }
-                if (dataObjects[dp_]) {
-                    for (var attr in dataObjects[dp_]) {
-                        response[attr] = dataObjects[dp_][attr];
+                if (metaObjects[dp_]) {
+                    for (var attr in metaObjects[dp_]) {
+                        response[attr] = metaObjects[dp_][attr];
                     }
                 }
             }
@@ -891,11 +863,11 @@ function restApi(req, res) {
                 response = {error: "no program given"};
             }
             var id;
-            if (dataIndex.Program && dataIndex.PROGRAM.indexOf(tmpArr[1]) != -1) {
+            if (metaIndex.Program && metaIndex.PROGRAM.indexOf(tmpArr[1]) != -1) {
                 id = tmpArr[1]
-            } else if (dataIndex.Name && dataIndex.Name[tmpArr[1]]) {
-                if (dataObjects[tmpArr[1]].TypeName == "PROGRAM") {
-                    id = dataIndex.Name[tmpArr[1]][0];
+            } else if (metaIndex.Name && metaIndex.Name[tmpArr[1]]) {
+                if (metaObjects[tmpArr[1]].TypeName == "PROGRAM") {
+                    id = metaIndex.Name[tmpArr[1]][0];
                 }
             }
             if (!id) {
@@ -907,11 +879,11 @@ function restApi(req, res) {
             }
             break;
         case "getIndex":
-            response = dataIndex;
+            response = metaIndex;
             status = 200;
             break;
         case "getObjects":
-            response = dataObjects;
+            response = metaObjects;
             status = 200;
             break;
         case "getdataValues":
@@ -934,13 +906,24 @@ function restApi(req, res) {
 
 }
 
+// Create metaIndex.adapter - address adapter by name
 function initAdapters() {
     if (!extDone) {
         // extend index information for adapters
         for (var i = 0, len = settings.adapters.length; i < len; i++) {
             if (settings.adapters[i]) {
-                dataIndex.adapterInfo[i] = settings.adapters[i];
-                dataIndex.adapter[settings.adapters[i].name] = i;
+                metaIndex.adapterInfo[i] = settings.adapters[i];
+                if (metaIndex.adapter[settings.adapters[i].name]) {
+                    logger.error("initAdapters: Duplicate adapter name " + settings.adapters[i].name);
+                } else {
+                    metaIndex.adapter[settings.adapters[i].name] = i;
+
+                    if (settings.adapters[i].name != settings.adapters[i].type) {
+                        if (!metaIndex.adapter[settings.adapters[i].type]) {
+                            metaIndex.adapter[settings.adapters[i].type] = i;
+                        }
+                    }
+                }
             }
         }
 
@@ -1049,24 +1032,24 @@ function delObject (id) {
     // Convert id if not array
     id = getId(id);
 
-    var obj = dataObjects[id[0]][id[1]];
+    var obj = metaObjects[id[0]][id[1]];
     if (obj.address) {
-        delete dataIndex.address[id[0]][obj.address];
+        delete metaIndex.address[id[0]][obj.address];
     }
     if (dataValues[id[0]][id[1]]) {
         dataValues[id[0]][id[1]] = null;
     }
 
-    delete dataIndex.name[adapterId][obj.name];
+    delete metaIndex.name[adapterId][obj.name];
 
     // Clear location
     if (obj.location) {
-        for (var i = 0, len = dataIndex.location[obj.location].length; i < len; i++) {
+        for (var i = 0, len = metaIndex.location[obj.location].length; i < len; i++) {
             for (var j = 0, jlen = obj.location.length; j < jlen; j++) {
-                if (dataIndex.location[obj.location[j]][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                    dataIndex.location[obj.location[j]].splice (i, 1);
-                    if (!dataIndex.location[obj.location[j]].length) {
-                        delete dataIndex.location[obj.location[j]];
+                if (metaIndex.location[obj.location[j]][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                    metaIndex.location[obj.location[j]].splice (i, 1);
+                    if (!metaIndex.location[obj.location[j]].length) {
+                        delete metaIndex.location[obj.location[j]];
                     }
                 }
             }
@@ -1075,12 +1058,12 @@ function delObject (id) {
 
     // Clear favorite
     if (obj.favorite) {
-        for (var i = 0, len = dataIndex.favorite[obj.favorite].length; i < len; i++) {
+        for (var i = 0, len = metaIndex.favorite[obj.favorite].length; i < len; i++) {
             for (var j = 0, jlen = obj.favorite.length; j < jlen; j++) {
-                if (dataIndex.favorite[obj.favorite[j]][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                    dataIndex.favorite[obj.favorite[j]].splice (i, 1);
-                    if (!dataIndex.favorite[obj.favorite[j]].length) {
-                        delete dataIndex.favorite[obj.favorite[j]];
+                if (metaIndex.favorite[obj.favorite[j]][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                    metaIndex.favorite[obj.favorite[j]].splice (i, 1);
+                    if (!metaIndex.favorite[obj.favorite[j]].length) {
+                        delete metaIndex.favorite[obj.favorite[j]];
                     }
                 }
             }
@@ -1089,12 +1072,12 @@ function delObject (id) {
 
     // Clear role
     if (obj.role) {
-        for (var i = 0, len = dataIndex.role[obj.role].length; i < len; i++) {
+        for (var i = 0, len = metaIndex.role[obj.role].length; i < len; i++) {
             for (var j = 0, jlen = obj.role.length; j < jlen; j++) {
-                if (dataIndex.role[obj.role[j]][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                    dataIndex.role[obj.role[j]].splice (i, 1);
-                    if (!dataIndex.role[obj.role[j]].length) {
-                        delete dataIndex.role[obj.role[j]];
+                if (metaIndex.role[obj.role[j]][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                    metaIndex.role[obj.role[j]].splice (i, 1);
+                    if (!metaIndex.role[obj.role[j]].length) {
+                        delete metaIndex.role[obj.role[j]];
                     }
                 }
             }
@@ -1103,40 +1086,40 @@ function delObject (id) {
 
     // Clear specType
     if (obj.specType) {
-        for (var i = 0, len = dataIndex.specType[obj.specType].length; i < len; i++) {
-            if (dataIndex.specType[obj.specType][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                dataIndex.specType[obj.specType].splice (i, 1);
+        for (var i = 0, len = metaIndex.specType[obj.specType].length; i < len; i++) {
+            if (metaIndex.specType[obj.specType][i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                metaIndex.specType[obj.specType].splice (i, 1);
                 break;
             }
         }
-        if (!dataIndex.role[obj.specType].length) {
-            delete dataIndex.specType[obj.specType];
+        if (!metaIndex.role[obj.specType].length) {
+            delete metaIndex.specType[obj.specType];
         }
     }
 
     // Clear devices
     if (obj.type == c.cObjTypeDevice) {
-        for (var i = 0, len = dataIndex.device.length; i < len; i++) {
-            if (dataIndex.device[i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                dataIndex.device.splice (i, 1);
+        for (var i = 0, len = metaIndex.device.length; i < len; i++) {
+            if (metaIndex.device[i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                metaIndex.device.splice (i, 1);
                 break;
             }
         }
     }
     else// Clear channels
     if (obj.type == c.cObjTypeChannel) {
-        for (var i = 0, len = dataIndex.channel.length; i < len; i++) {
-            if (dataIndex.channel[i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                dataIndex.channel.splice (i, 1);
+        for (var i = 0, len = metaIndex.channel.length; i < len; i++) {
+            if (metaIndex.channel[i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                metaIndex.channel.splice (i, 1);
                 break;
             }
         }
     }
     else// Clear point
     if (obj.type == c.cObjTypePoint) {
-        for (var i = 0, len = dataIndex.point.length; i < len; i++) {
-            if (dataIndex.point[i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
-                dataIndex.point.splice (i, 1);
+        for (var i = 0, len = metaIndex.point.length; i < len; i++) {
+            if (metaIndex.point[i][2/*iCombyId*/] == id[2/*iCombyId*/]) {
+                metaIndex.point.splice (i, 1);
                 break;
             }
         }
@@ -1145,105 +1128,105 @@ function delObject (id) {
 
 // remove from trees all objects of this adapter
 function delAdapterObjects (adapterId) {
-    dataObjects[adapterId] = null;
+    metaObjects[adapterId] = null;
     dataValues[adapterId]  = null;
-    dataIndex.address[adapterId] = null;
-    dataIndex.name[adapterId] = null;
+    metaIndex.address[adapterId] = null;
+    metaIndex.name[adapterId] = null;
     // Clear location
-    for (var obj in dataIndex.location) {
-        for (var len = dataIndex.location[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.location[obj][i][0] == adapterId){
-                dataIndex.location[obj].splice(i, 1);
+    for (var obj in metaIndex.location) {
+        for (var len = metaIndex.location[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.location[obj][i][0] == adapterId){
+                metaIndex.location[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.location) {
-        if (!dataIndex.location[obj].length) {
-            delete dataIndex.location[obj];
+    for (var obj in metaIndex.location) {
+        if (!metaIndex.location[obj].length) {
+            delete metaIndex.location[obj];
         }
     }
 
     // Clear favorite
-    for (var obj in dataIndex.favorite) {
-        for (var len = dataIndex.favorite[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.favorite[obj][i][0] == adapterId){
-                dataIndex.favorite[obj].splice(i, 1);
+    for (var obj in metaIndex.favorite) {
+        for (var len = metaIndex.favorite[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.favorite[obj][i][0] == adapterId){
+                metaIndex.favorite[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.favorite) {
-        if (!dataIndex.favorite[obj].length) {
-            delete dataIndex.favorite[obj];
+    for (var obj in metaIndex.favorite) {
+        if (!metaIndex.favorite[obj].length) {
+            delete metaIndex.favorite[obj];
         }
     }
 
     // Clear role
-    for (var obj in dataIndex.role) {
-        for (var len = dataIndex.role[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.role[obj][i][0] == adapterId){
-                dataIndex.role[obj].splice(i, 1);
+    for (var obj in metaIndex.role) {
+        for (var len = metaIndex.role[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.role[obj][i][0] == adapterId){
+                metaIndex.role[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.role) {
-        if (!dataIndex.role[obj].length) {
-            delete dataIndex.role[obj];
+    for (var obj in metaIndex.role) {
+        if (!metaIndex.role[obj].length) {
+            delete metaIndex.role[obj];
         }
     }
 
     // Clear specType
-    for (var obj in dataIndex.specType) {
-        for (var len = dataIndex.specType[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.specType[obj][i][0] == adapterId){
-                dataIndex.specType[obj].splice(i, 1);
+    for (var obj in metaIndex.specType) {
+        for (var len = metaIndex.specType[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.specType[obj][i][0] == adapterId){
+                metaIndex.specType[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.specType) {
-        if (!dataIndex.specType[obj].length) {
-            delete  dataIndex.specType[obj];
+    for (var obj in metaIndex.specType) {
+        if (!metaIndex.specType[obj].length) {
+            delete  metaIndex.specType[obj];
         }
     }
 
     // Clear devices
-    for (var obj in dataIndex.device) {
-        for (var len = dataIndex.device[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.device[obj][i][0] == adapterId){
-                dataIndex.device[obj].splice(i, 1);
+    for (var obj in metaIndex.device) {
+        for (var len = metaIndex.device[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.device[obj][i][0] == adapterId){
+                metaIndex.device[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.device) {
-        if (!dataIndex.device[obj].length) {
-            delete  dataIndex.device[obj];
+    for (var obj in metaIndex.device) {
+        if (!metaIndex.device[obj].length) {
+            delete  metaIndex.device[obj];
         }
     }
 
     // Clear channels
-    for (var obj in dataIndex.channel) {
-        for (var len = dataIndex.channel[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.channel[obj][i][0] == adapterId){
-                dataIndex.channel[obj].splice(i, 1);
+    for (var obj in metaIndex.channel) {
+        for (var len = metaIndex.channel[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.channel[obj][i][0] == adapterId){
+                metaIndex.channel[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.channel) {
-        if (!dataIndex.channel[obj].length) {
-            delete  dataIndex.channel[obj];
+    for (var obj in metaIndex.channel) {
+        if (!metaIndex.channel[obj].length) {
+            delete  metaIndex.channel[obj];
         }
     }
 
     // Clear point
-    for (var obj in dataIndex.point) {
-        for (var len = dataIndex.point[obj].length, i = len -1; i >= 0; i--) {
-            if (dataIndex.point[obj][i][0] == adapterId){
-                dataIndex.point[obj].splice(i, 1);
+    for (var obj in metaIndex.point) {
+        for (var len = metaIndex.point[obj].length, i = len -1; i >= 0; i--) {
+            if (metaIndex.point[obj][i][0] == adapterId){
+                metaIndex.point[obj].splice(i, 1);
             }
         }
     }
-    for (var obj in dataIndex.point) {
-        if (!dataIndex.point[obj].length) {
-            delete  dataIndex.point[obj];
+    for (var obj in metaIndex.point) {
+        if (!metaIndex.point[obj].length) {
+            delete  metaIndex.point[obj];
         }
     }
 }
@@ -1251,8 +1234,8 @@ function delAdapterObjects (adapterId) {
 
 
 function addObjects (adapterId, isMerge, newObjects, newValues) {
-    if (!isMerge && dataObjects[adapterId]) {
-        dataObjects[adapterId] = null;
+    if (!isMerge && metaObjects[adapterId]) {
+        metaObjects[adapterId] = null;
     }
     if (newObjects) {
         for (var id in newObjects) {
@@ -1311,6 +1294,7 @@ function initSocketIO(_io) {
         });
 
         socket.on ("subscribe", function (id) {
+            if (this.adapterId && settingd.adapters[this.adapterId].mut)
             id = getId (id);
             if (!socket.subsscribe) {
                 socket.subsscribe = [];
@@ -1355,7 +1339,7 @@ function initSocketIO(_io) {
         });
 
         socket.on('restartAdapter', function (adapter) {
-           return restartAdapter(adapter)
+           return startAdapter(adapter)
         });
 
         socket.on('updateAddon', function (url, name) {
@@ -1370,10 +1354,10 @@ function initSocketIO(_io) {
                     msg = " failed.";
                 }
                 if (io) {
-                    io.sockets.emit("ioMessage", "Update "+name+msg);
+                    io.sockets.emit('ioMessage', 'Update '+name+msg);
                 }
                 if (ioSsl) {
-                    ioSsl.sockets.emit("ioMessage", "Update "+name+msg);
+                    ioSsl.sockets.emit('ioMessage', 'Update '+name+msg);
                 }
             });
         });
@@ -1384,22 +1368,22 @@ function initSocketIO(_io) {
             logger.info("Homander  starting "+path);
             var updateProcess = cp.fork(path);
             if (io) {
-                io.sockets.emit("ioMessage", "Update started. Please be patient...");
+                io.sockets.emit('ioMessage', 'Update started. Please be patient...');
             }
             if (ioSsl) {
-                ioSsl.sockets.emit("ioMessage", "Update started. Please be patient...");
+                ioSsl.sockets.emit('ioMessage', 'Update started. Please be patient...');
             }
             updateProcess.on("close", function (code) {
                 settings.updateSelfRunning = false;
                 if (code == 0) {
                     if (io) {
-                        io.sockets.emit("ioMessage", "Update done. Restarting...");
+                        io.sockets.emit('ioMessage', 'Update done. Restarting...');
                     }
                     if (ioSsl) {
-                        ioSsl.sockets.emit("ioMessage", "Update done. Restarting...");
+                        ioSsl.sockets.emit('ioMessage', 'Update done. Restarting...');
                     }
-                    logger.info("Homander  update done. restarting...");
-                    cp.fork(__dirname+"/Homander-server.js", ["restart"]);
+                    logger.info('Homander  update done. restarting...');
+                    cp.fork(__dirname+'/Homander-server.js', ['restart']);
                 } else {
                     logger.error("Homander  update failed.");
                     if (io) {
@@ -1497,6 +1481,15 @@ function initSocketIO(_io) {
             }
         });
 
+        socket.on('reloadDataReady', function () {
+            if (io) {
+                io.sockets.emit('reloadDataReady');
+            }
+            if (ioSsl) {
+                ioSsl.sockets.emit('reloadDataReady');
+            }
+        });
+
         socket.on('setStates', function (newdataValues){
             mergeTrees (null, false, null, null, newdataValues);
         });
@@ -1505,30 +1498,9 @@ function initSocketIO(_io) {
             devLog (timeStamp, id, val);
         });
 
-        socket.on('reloadDataReady', function () {
-            if (io) {
-                io.sockets.emit("reload");
-            }
-            if (ioSsl) {
-                ioSsl.sockets.emit("reload");
-            }
-        });
-
         socket.on('restart', function () {
             logger.info("Homander  received restart command");
-            cp.fork(__dirname+"/Homander-server.js", ["restart"]);
-        });
-
-        socket.on('reloadScriptEngine', function (callback) {
-            if (settings.scriptEngineEnabled) {
-                childrenAdapter[c.cScript].kill();
-                setTimeout(function () {
-                    startScriptEngine();
-                    if (callback) {
-                        callback();
-                    }
-                }, 1500);
-            }
+            cp.fork(__dirname+"/homander-server.js", ["restart"]);
         });
 
         socket.on('readdir', function (path, callback) {
@@ -1703,6 +1675,14 @@ function initSocketIO(_io) {
             updateStatus ();
         });
 
+        socket.on('setStats', function(name, value) {
+            if (!stats.counters[name]) {
+                stats.counters[name] = {value: 0};
+            }
+
+            stats.counters[name].value = value;
+        });
+
         socket.on('getNextId', function (start, callback) {
             callback(nextId(start));
         });
@@ -1759,20 +1739,12 @@ function initSocketIO(_io) {
 		
         socket.on('getObjects', function(callback) {
             logger.verbose("socket.io <-- getObjects");
-            callback(dataObjects);
+            callback(metaObjects);
         });
 
         socket.on('getIndex', function(callback) {
             logger.verbose("socket.io <-- getIndex");
-            callback(dataIndex);
-        });
-
-        socket.on('setStats', function(name, value) {
-			if (!stats.counters[name]) {
-				stats.counters[name] = {value: 0};
-			}
-			
-            stats.counters[name].value = value;
+            callback(metaIndex);
         });
 
         socket.on('addObject', function (objId, obj, value, callback) {
@@ -1815,15 +1787,38 @@ function initSocketIO(_io) {
              }
         });
 
-        socket.on('cmdToAdapter', function (adapterId, cmd, arg, callback) {
-            for (var i = 0, len = socketList.length; i < len; i++) {
-                if (!socketList[i].adapterId || socketList[i].adapterId == adapterId) {
-                    socketList[i].emit (cmd, arg, function (result){
-                        if (callback) {
-                            callback(result);
-                        }
-                    });
+        socket.on('toAdapter', function (adapter, cmd, arg, callback) {
+            var adapterId;
+            if (typeof adapter == 'string') {
+                if (adapter.length > 1 && adapter[0] >= '0' && adapter[0] <= '9') {
+                    adapterId = parseInt(adapter)                    
                 }
+                else {
+                    adapterId = metaIndex.adapters[adapter];
+                    // Find adapter with this name
+                    if (!adapterId) {
+                        for (var i = 0, len = settings.adapters.length; i < len; i++) {
+                            if (settings.adapters[i] && settings.adapters[i].type && settings.adapters[i].type == adapter) {
+                                adapterId = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (adapterId) {
+                for (var i = 0, len = socketList.length; i < len; i++) {
+                    if (!socketList[i].adapterId || socketList[i].adapterId == adapterId) {
+                        socketList[i].emit(cmd, arg, function (result){
+                            if (callback) {
+                                callback(result);
+                            }
+                        });
+                    }
+                }
+            } else {
+                logger.error ("toAdapter: Unknown adapter id - " + adapter);
             }
         });
 
@@ -1835,21 +1830,21 @@ function initSocketIO(_io) {
                 objId     = objId & c.cObjectsMask;
             }
             // Todo Delay??
-            if (!adapterId || !settings.adapters[adapterId] || !dataObjects[adapterId]) {
+            if (!adapterId || !settings.adapters[adapterId] || !metaObjects[adapterId]) {
                 logger.warn("setPointValue adapter " + adapterId + " does not exist");
                 if (callback)  {
                     callback (null);
                 }
                 return;
             }
-            if (!dataObjects[adapterId][objId]) {
+            if (!metaObjects[adapterId][objId]) {
                 logger.warn("setPointValue object " + objId + " of " + settings.adapters[adapterId].name + " does not exist");
                 if (callback)  {
                     callback (null);
                 }
                 return;
             }
-            logger.info("setPointValue " + settings.adapters[adapterId].name + "." + dataObjects[adapterId][objId].name + " " +JSON.stringify(val));
+            logger.info("setPointValue " + settings.adapters[adapterId].name + "." + metaObjects[adapterId][objId].name + " " +JSON.stringify(val));
 
             var obj = setPointValue([adapterId, objId], {val:val, ts:ts, ack: ack});
             if (callback)  {
@@ -1869,7 +1864,7 @@ function initSocketIO(_io) {
                 return;
             }
 
-            if (!settings.adapters[adapterId] || !dataObjects[adapterId]) {
+            if (!settings.adapters[adapterId] || !metaObjects[adapterId]) {
                 logger.warn("setPointValues adapter " + adapterId + " does not exist");
                 if (callback)  {
                     callback (null);
@@ -1918,113 +1913,86 @@ function initSocketIO(_io) {
     });
 }
 
-function startScriptEngine() {
-    var path = __dirname + "/script-engine.js";
-    logger.info("Homander  starting script-engine");
-    childrenAdapter[c.cScript] = cp.fork(path);
-}
+function _startAdapterHelper (adapterId) {
+    var isRestarting = false;
+    // Kill adapter before start
+    if (childrenAdapter[_adapter].process && !childrenAdapter[adapterId].period) {
+        try{
+            isRestarting = true;
+            logger.info("Homander  killing adapter " + settings.adapters[adapterId].name);
+            childrenAdapter[_adapter].process.kill ();
+            childrenAdapter[_adapter].process = null;
+        }
+        catch (e)
+        {
 
-function restartAdapter(adapterId) {
-    //logger.info("Homander  found adapter "+adapter);
+        }
+    }
+
+    logger.info("Homander  starting adapter "+settings.adapters[adapterId].name+(childrenAdapter[adapterId].period ? ' (interval='+period+'ms)': ''));
+    var path = __dirname + '/adapter/'+settings.adapters[adapterId].name+"/"+settings.adapters[adapterId].name+'.js';
+    var env = _.clone (process.env);
+
+    env.adapterId   = adapterId;
+    env.serverIp    = '127.0.0.1';
+    env.serverPort  = settings.ioListenPort || settings.ioListenPortSsl;
+    env.serverIsSec = settings.ioListenPort ? false: (settings.ioListenPortSsl ? true: false);
+
+    childrenAdapter[_adapter].process = cp.fork (path, env);
+
+    return isRestarting ? "Adapter started" : "Adapter restarted";
+}
+// start one adapter
+function startAdapter (adapterId) {
+    if (!settings.adapters[adapterId]) {
+        return;
+    }
+
     var mode = settings.adapters[adapterId].mode;
+
+    if (!childrenAdapter[adapterId]) {
+        childrenAdapter[adapterId] = {};
+    }
+
     switch (mode) {
         case "periodical":
-            {
-                clearTimeout(timerAdapter[adapterId]);
-                timerAdapter[adapterId] = setTimeout(function (_adapterId) {
-                    startAdapterPeriod (_adapterId);
-                    logger.info("Homander  adapter "+_adapterId+" timer restarted");
-                }, 50, adapterId);
-                return "adapter "+adapter+" timer restarted";
+            // Stop old timer
+            if (childrenAdapter[adapterId].timerAdapter) {
+                clearInterval (childrenAdapter[adapterId].timerAdapter);
+                childrenAdapter[adapterId].timerAdapter = null;
             }
+
+            // Get period and convert it
+            childrenAdapter[adapterId].period = (parseInt (settings.adapters[adapterId].period) * 60000) || 3600000; // default - one hour
+
+            // Start interval
+            childrenAdapter[adapterId].timerAdapter = setInterval(_startAdapterHelper, childrenAdapter[adapterId].period, adapterId);
             break;
 
         default:
-            logger.info("Homander  killing adapter " + adapter);
-
-            try {
-                if (childrenAdapter[adapterId]) {
-                    childrenAdapter[adapterId].process.kill();
-                }
-                else {
-                    childrenAdapter[adapterId] = {};
-                }
-            } catch (e) {
-
-            }
-            setTimeout(function (_adapterId) {
-                var path = __dirname + "/adapter/"+settings.adapters[adapterId].name+"/"+settings.adapters[adapterId].name+".js";
-                logger.info("Homander  starting adapter " + _path);
-                var env = _.clone(process.env);
-                env.adapterId = _adapterId;
-                childrenAdapter[_adapterId].process = cp.fork(_path, env);
-                return "adapter "+settings.adapters[adapterId].name+" timer restarted";
-            }, 1000, _adapterId);
+            break;
     }
 
-    return "Adapter restarted";
+    // Start adapter immediately
+    _startAdapterHelper (adapterId);
 }
-
+// start all adapters and scrit engine
 function startAdapters () {
     if (!settings.adapters) {
         return false;
     }
     var i = 0;
     for (var adapterId = c.cUserAdapter; adapterId < settings.adapters.length; adapterId++) {
-        if (!settings.adapters[adapterId]) {
-            continue;
+        if (settings.adapters[adapterId]) {
+            setTimeout(startAdapter, (i*3000), adapterId);
+            i++;
         }
-        //logger.info("Homander  found adapter "+adapter);
-        var mode = settings.adapters[adapterId].mode;
-
-        if (!childrenAdapter[adapterId]) {
-            childrenAdapter[adapterId] = {};
-        }
-
-        switch (mode) {
-            case "periodical":
-                setTimeout(function (_adapterId) {
-                    startAdapterPeriod(_adapterId);
-                }, (i * 3000), adapterId);
-                break;
-
-            default:
-                setTimeout(function (_adapterId) {
-                    var path = __dirname + "/adapter/"+settings.adapters[_adapterId].name+"/"+settings.adapters[_adapterId].name+".js";
-                    logger.info("Homander  starting adapter " + path);
-                    var env = _.clone(process.env);
-                    env.adapterId = _adapterId;
-                    childrenAdapter[_adapterId].process = cp.fork(path, env);
-                }, (i * 3000),adapterId);
-        }
-        i++;
-    }
-    if (settings.scriptEngineEnabled) {
-        setTimeout(startScriptEngine, (i*3000));
-    }
-}
-
-function startAdapterPeriod (adapterId, startDelay) {
-    var period = (settings.adapters[adapterId].period) ? settings.adapters[adapterId].period * 60000 : 0;
-
-    period = parseInt (period, 10) || 3600000;
-
-    if (!childrenAdapter[adapterId]) {
-        childrenAdapter[adapterId] = {};
     }
 
-    timerAdapter[adapterId] = setInterval(function () {
-       logger.info("Homander  starting adapter "+settings.adapters[adapterId].name+" (interval="+period+"ms)");
-       var path = __dirname + "/adapter/"+settings.adapters[adapterId].name+"/"+settings.adapters[adapterId].name+".js";
-       var env = _.clone (process.env);
-       env.adapterId = adapterId;
-       childrenAdapter[_adapter].process = cp.fork (adapter, env);
-    }, period);
-    var path = __dirname + "/adapter/"+settings.adapters[adapterId].name+"/"+settings.adapters[adapterId].name+".js";
-    var env  = _.clone (process.env);
-    env.adapterId = adapterId;
-    logger.info("Homander  starting adapter "+adapter+" (interval="+interval+"ms)");
-    childrenAdapter[_adapter].process = cp.fork(path, env);
+    // Start as last script engine
+    if (settings.adapters[c.cScript]) {
+        setTimeout(startScriptEngine, (i*3000), c.cScript);
+    }
 }
 
 process.on('SIGINT', function () {
@@ -2036,10 +2004,22 @@ process.on('SIGTERM', function () {
 });
 
 function stop() {
-    savedataValues();
-    savePersistentObjects();
     try {
-        socketList.forEach(function(socket) {
+        // Terminate all adapters
+        for (var i = 0, len = childrenAdapter.length; i < len; i++) {
+            if (childrenAdapter[i] && childrenAdapter[adapter].process) {
+                logger.info("Homander  killing adapter "+settings.adapters[i].name);
+                if (childrenAdapter[adapter].timerAdapter){
+                    clearTimeout (childrenAdapter[adapter].timerAdapter);
+                    childrenAdapter[adapter].timerAdapter = null;
+                }
+                childrenAdapter[adapter].process.kill();
+                childrenAdapter[adapter].process = null;
+            }
+        }
+
+        // Disconnect all clients
+        socketList.forEach(function (socket) {
             logger.info("socket.io --> disconnecting socket");
             socket.disconnect();
         });
@@ -2054,22 +2034,15 @@ function stop() {
             ioSsl.server.close();
             ioSsl.server = undefined;
         }
-
-        for (var i = 0, len = childrenAdapter.length; i < len; i++) {
-            if (childrenAdapter[i]) {
-                logger.info("Homander  killing adapter "+adapter);
-                childrenAdapter[adapter].process.kill();
-            }
-        }
     } catch (e) {
         logger.error("Homander  something went wrong while terminating: "+e)
     }
 
+    saveDataValues();
+    savePersistentObjects();
 
     setTimeout(quit, 500);
 }
-
-var quitCounter = 0;
 
 function quit() {
     logger.verbose("Homander  quit");
@@ -2134,7 +2107,7 @@ function devLog(id, value) {
     if (!settings.logging.enabled) {
         return;
     }
-    if (!dataObjects[id[0]][id[1]].isLogged) {
+    if (!metaObjects[id[0]][id[1]].isLogged) {
         return;
     }
 
@@ -2154,7 +2127,7 @@ function devLog(id, value) {
 
 function savePersistentObjects() {
     var name    = "io-persistent-objs.json";
-    var objects = JSON.parse(JSON.stringify(dataObjects));
+    var objects = JSON.parse(JSON.stringify(metaObjects));
 
     for (var i = 0, ilen = objects.length; i < ilen; i++) {
         if (objects[i]) {
@@ -2190,14 +2163,14 @@ function loadPersistentObjects() {
     }
 }
 
-function savedataValues() {
+function saveDataValues() {
     var name = "io-persistent-dps.json";
     var content = JSON.parse(JSON.stringify(dataValues));
 
     for (var i = 0, ilen = content.length; i < ilen; i++) {
         if (content[i]) {
             for (var j = 0, jlen = content[i].length; j < jlen; j++) {
-                if (content[i][j] && (!dataObjects[i][j] || !dataObjects[i][j].isPersistent)) {
+                if (content[i][j] && (!metaObjects[i][j] || !metaObjects[i][j].isPersistent)) {
                     content[i][j] = null;
                 }
                 else {
@@ -2212,7 +2185,7 @@ function savedataValues() {
     content = null;
 }
 
-function loaddataValues() {
+function loadDataValues() {
     var dps;
     try {
         var x = fs.readFileSync(settings.datastorePath+"io-persistent-dps.json");

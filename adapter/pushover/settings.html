@@ -1,0 +1,42 @@
+<table style="font-size: 12px">
+    <tr>
+        <td class="translate">User:</td>
+        <td><input id="pushover_settings_user" type="text" size="50"/></td>
+        <td class="translate">Group Key of Delivery Group</td>
+    </tr>
+    <tr>
+        <td class="translate">Token:</td>
+        <td><input id="pushover_settings_token" type="text" size="50"/></td>
+        <td class="translate">API Token/Key of Application</td>
+    </tr>
+    <tr>
+        <td class="translate">Title:</td>
+        <td class="translate"><input id="pushover_settings_title" type="text" size="50"/></td>
+        <td></td>
+    </tr>
+</table>
+
+<script type="text/javascript">
+
+    $("#pushover_settings_user").val(currentAdapterSettings.user);
+
+    $("#pushover_settings_user").change(function () {
+        currentAdapterSettings.user = $("#pushover_settings_user").val();
+        updateAdapterSettings();
+    });
+
+    $("#pushover_settings_token").val(currentAdapterSettings.token);
+
+    $("#pushover_settings_token").change(function () {
+        currentAdapterSettings.token = $("#pushover_settings_token").val();
+        updateAdapterSettings();
+    });
+
+    $("#pushover_settings_title").val(currentAdapterSettings.title);
+
+    $("#pushover_settings_title").change(function () {
+        currentAdapterSettings.title = $("#pushover_settings_title").val();
+        updateAdapterSettings();
+    });
+
+</script>

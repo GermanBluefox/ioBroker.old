@@ -6,39 +6,33 @@
  *
  */
 
-// Constants of object types
-var cObjTypeDevice  = 1;
-var cObjTypeChannel = 2;
-var cObjTypePoint   = 3;
-
-var settings = require(__dirname+'/../../settings.js');
-
 var logger = require(__dirname+'/../../logger.js'),
     io     = require('socket.io-client'),
+    c      = require(__dirname+'/www/lib/js/sysConst.js'),
 	ping   = require("ping");
 
 var statesIDs = [],// array with {ip, state}
     curID     = null;
 
-if (settings.ioListenPort) {
-	var socket = io.connect("127.0.0.1", {
-		port: settings.ioListenPort
-	});
-} else if (settings.ioListenPortSsl) {
-	var socket = io.connect("127.0.0.1", {
-		port: settings.ioListenPortSsl,
-		secure: true
+// 4 arguments will be sent by server to adapter: serverPort, serverIsSec, serverIp and adapterId
+
+var socket;
+// Connect to server
+if (process.env.serverPort) {
+	socket = io.connect(process.env.serverIp || "127.0.0.1", {
+		port:   process.env.serverPort,
+        secure: process.env.serverIsSec
 	});
 } else {
 	process.exit();
 }
 
-var pingSettings = null;
+var settings = null;
 
 socket.on('connect', function () {
     logger.info("adapter ping  connected to Homander");
     this.emit ("getAdapterSettings", process.env.adapterId, function (data) {
-        pingSettings = data;
+        settings = data;
         pingInit ();
     });
 });
@@ -76,15 +70,15 @@ function pingInit () {
     var devChannels = [];
     var i = 0;
 
-    for (var id_ in pingSettings.IPs) {
+    for (var id_ in settings.IPs) {
         var id = parseInt (id_.substring(1));
 
-        var ip_ = pingSettings.IPs[id_].ip.replace(/\./g,"_");
+        var ip_ = settings.IPs[id_].ip.replace(/\./g,"_");
 
-        devChannels.push((pingSettings.firstId + 1) + (id * 2));
+        devChannels.push((settings.firstId + 1) + (id * 2));
 		
         var chObject = {
-            name:         (pingSettings.IPs[id_]['name']) ? pingSettings.IPs[id_]['name'] : pingSettings.IPs[id_].ip,
+            name:         (settings.IPs[id_]['name']) ? settings.IPs[id_]['name'] : settings.IPs[id_].ip,
             type:         cObjTypePoint,
             address:      ip_+".STATE",
             isLogged:     true,
@@ -92,11 +86,11 @@ function pingInit () {
             specType:     "PING"
         };
 		
-		if (pingSettings.IPs[id_].location) {
-			chObject.location = pingSettings.IPs[id_].location;
+		if (settings.IPs[id_].location) {
+			chObject.location = settings.IPs[id_].location;
 		}
-		if (pingSettings.IPs[id_].role) {
-			chObject.role = pingSettings.IPs[id_].role;
+		if (settings.IPs[id_].role) {
+			chObject.role = settings.IPs[id_].role;
 		}
 		
 		addObject(i, chObject);
@@ -108,18 +102,18 @@ function pingInit () {
 
     logger.info("adapter ping  inserted objects");
 	// Fix polling interval if too short
-	if (pingSettings.pollingInterval <= 5000 * (i + 1)) {
-		pingSettings.pollingInterval = 5000 * (i + 1);
+	if (settings.pollingInterval <= 5000 * (i + 1)) {
+		settings.pollingInterval = 5000 * (i + 1);
 	}
 
-    logger.info("adapter ping  polling enabled - interval "+pingSettings.pollingInterval+"ms");
+    logger.info("adapter ping  polling enabled - interval "+settings.pollingInterval+"ms");
 
-    setInterval(pollIp, pingSettings.pollingInterval);
+    setInterval(pollIp, settings.pollingInterval);
     pollIp (undefined);
 }
 
 function setState(objId, val) {
-    logger.verbose("adapter ping  setState "+pingSettings.IPs[statesIDs[objId]].ip+" "+val);
+    logger.verbose("adapter ping  setState "+settings.IPs[statesIDs[objId]].ip+" "+val);
     socket.emit("setPointValue", objId, val, null, true);
 }
 
@@ -136,13 +130,13 @@ function pollIp(objId) {
 
     if (statesIDs[objId] !== undefined) {
         curID = objId;
-        logger.verbose("adapter ping  polling ip "+pingSettings.IPs[statesIDs[curID]].ip);
-        ping.sys.probe(pingSettings.IPs[statesIDs[curID]].ip, function(isAlive){
+        logger.verbose("adapter ping  polling ip "+settings.IPs[statesIDs[curID]].ip);
+        ping.sys.probe(settings.IPs[statesIDs[curID]].ip, function(isAlive){
             if (!isAlive) {
-                logger.verbose("adapter ping  result for "+pingSettings.IPs[statesIDs[curID]].ip+" is UNRECHABLE");
+                logger.verbose("adapter ping  result for "+settings.IPs[statesIDs[curID]].ip+" is UNRECHABLE");
                 setState(curID,  false);
             } else {
-                logger.verbose("adapter ping  result for "+pingSettings.IPs[statesIDs[curID]].ip+" is ALIVE");
+                logger.verbose("adapter ping  result for "+settings.IPs[statesIDs[curID]].ip+" is ALIVE");
                 setState(curID,  true);
             }
         });

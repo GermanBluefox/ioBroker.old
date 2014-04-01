@@ -120,6 +120,7 @@
         "Polling Trigger"   : {"en": "Polling Trigger",      "de": "Polling-Trigger",     "ru": "Polling-Trigger"},
         "Invalid"           : {"en": "Invalid",              "de": "Invalid",             "ru": "не существует"}
     };
+
     var socket = io.connect( $(location).attr('protocol') + '//' +  $(location).attr('host') + "?key="+socketSession);
     socket.emit('getIpAddresses', function (ipArr) {
         if (ipArr) {
@@ -139,67 +140,6 @@
             $("#binrpc_listenIp option[value='"+currentAdapterSettings.binrpc.listenIp+"']").attr("selected", true);
         }
     });
-
-    function translateWord (text, lang, dictionary) {
-        if (!mainSettings) return text;
-        if (!dictionary) dictionary = ccuWords;
-        if (!lang)       lang       = mainSettings.language || 'en';
-
-        if (!dictionary) {
-            return text;
-        }
-
-        if (dictionary[text]) {
-            var newText = dictionary[text][lang];
-            if (newText){
-                return newText;
-            }
-            else if (lang != 'en') {
-                newText = dictionary[text]['en'];
-                if (newText){
-                    return newText;
-                }
-            }
-
-        }
-        return text;
-    }
-
-    function translateWordBack (text, lang, dictionary) {
-        if (!dictionary) {
-            return text;
-        }
-        for (var word in dictionary) {
-            if (dictionary[word] === null)
-                continue;
-            if (dictionary[word][lang] == text)
-                return word;
-        }
-
-        console.log ("back: " + text);
-        return text;
-    }
-
-    function translateAll (lang, dictionary) {
-        lang  = lang || mainSettings.language || 'en';
-        dictionary = dictionary || ccuWords;
-
-        $(".translate").each(function (idx) {
-            var curlang = $(this).attr ('data-lang');
-            var text    = $(this).html ();
-            if (curlang != lang) {
-                if (curlang) {
-                    text = translateWordBack (text, curlang, dictionary);
-                }
-
-                var transText = translateWord (text, lang, dictionary);
-                if (transText) {
-                    $(this).html (transText);
-                    $(this).attr ('data-lang', lang);
-                }
-            }
-        });
-    }
 
     function storeSettings () {
         console.log (currentAdapterSettings);
