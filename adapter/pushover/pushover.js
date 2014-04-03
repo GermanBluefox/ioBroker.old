@@ -25,9 +25,9 @@
  *
  */
 
-
-var po_notif = require('pushover-notifications'),
-    logger   = require(__dirname+'/../../logger.js');
+var logger   = require(__dirname+'/../../logger.js'),
+    io       = require('socket.io-client'),
+    po_notif = require('pushover-notifications');
 
 var pushover;
 var socket;

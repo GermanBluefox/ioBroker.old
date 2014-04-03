@@ -15,9 +15,9 @@
  *
  */
 
-
-var nodemailer = require("nodemailer"),
-    logger     = require(__dirname+'/../../logger.js');
+var logger     = require(__dirname+'/../../logger.js'),
+    io         = require('socket.io-client'),
+    nodemailer = require("nodemailer");
 
 var emailTransport;
 var socket;
