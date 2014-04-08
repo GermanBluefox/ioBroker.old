@@ -1,10 +1,10 @@
 {
     "name": "pushover",
     "description": "Pushover - Simple mobile notifications",
-    "desiredId": 5,
+    "desiredId": 11,
     "settings": {
         "user":  "xxxxx",
         "token": "xxxxx",
-        "title": "Homander"
+        "title": "ioBroker"
     }
 }

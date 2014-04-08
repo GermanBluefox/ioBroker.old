@@ -1,7 +1,7 @@
 {
     "name": "email",
     "description": "Email client",
-    "desiredId": 6,
+    "desiredId": 10,
     "settings": {
         "transport": "SMTP",
         "transportOptions": {
@@ -14,7 +14,7 @@
         "defaults": {
             "from":    "test <test@test.com>",
             "to":      "abcdef@googlemail.com",
-            "subject": "Homander"
+            "subject": "ioBroker"
         }
     }
 }

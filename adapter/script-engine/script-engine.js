@@ -1,9 +1,9 @@
 /**
- *      Homander Script Engine
+ *      ioBroker Script Engine
  *
  *      Socket.IO based Home Automation Interface
  *
- *      Copyright (c) 2013-2014 hobbyquacker, bluefox http://homander.com
+ *      Copyright (c) 2013-2014 hobbyquacker, bluefox http://iobroker.com
  *
  *      CC BY-NC 3.0
  *
@@ -40,15 +40,15 @@ var scriptEngine = {
         // Connect to server
         if (process.env.serverPort) {
             that.socket = io.connect(process.env.serverIp || "127.0.0.1", {
-                port:   process.env.serverPort,
-                secure: process.env.serverIsSec
+                port:   process.env.serverPort  || 8081,
+                secure: process.env.serverIsSec || false
             });
         } else {
             process.exit();
         }
         
         that.socket.on('connect', function () {
-            that.logger.info("script-engine connected to Homander");
+            that.logger.info("script-engine connected to ioBroker");
         });
 
         that.socket.on('getAdapterId', function (callback) {
@@ -58,7 +58,7 @@ var scriptEngine = {
         });
 
         that.socket.on('disconnect', function () {
-            that.logger.info("script-engine disconnected from Homander");
+            that.logger.info("script-engine disconnected from ioBroker");
         });
 
         // Fetch Data

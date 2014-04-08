@@ -9,20 +9,21 @@
         "Nothing":           {"en": "Nothing to setup",  "de": "Es gibt hier keine Einstellungen", "ru": "Ничего не надо настраивать"},
         "Description":       {"en": "Description",       "de": "Beschreibung",    "ru": "Описание"},
         "Description text":  {
-            "en": "Ping adapter allows to scan IP devices in the local network.<br>"
-                    +"The Object \"PING.<IP>.STATE\" will be created for every Device in the list. This object consists the state of the device as true or false.<br>"
-                    +"Only operation systems with enabled \"ping\" command are supported as Homander host: Linux, Windows, MacOS."
-                    +"All devices, that support ICMP protocol, can be scaned by this adapter.",
+            "en": "This adapter enables the inter-communication between adapters and automate processes.<br>"
+                    +"Own scripts can be placed in the directory \"scripts\".<br>" +
+                    "<b>Note:<b>After the changes made to user scripts the script-engine must be restarted to apply the changes." +
+                    "You can read more information about scripting under <a href='http://iobroker.com/manual.html#scripting' target='_blank'>ioBroker.com</a>",
 
-            "de": "Ping adapter allows to scan IP devices in the local network.<br>"
-                    +"Es wird für jedes Gerät ein Objekt PING.<IP>.STATE erzeugt, welches den Gerätenzustand als \"true\" oder \"false\" hat.<br>"
-                    +"Es sind die Systeme für Homander, die \"ping\"-Befehl haben, unterstützt: Linux, Windows, MacOS.<br>"
-                    +"Alle Geräte, die ICMP Protokoll unterstützen, können mit diesem Adapter geskännt werden.",
+            "de": "Dieses Adapter erlaubt eigene Scripte zu starten, die einfach im Verzeichnis scripts abgelegt werden können.<br>" +
+                    "<b>Bitte beachten:</b> wenn Änderungen an den Scripten erfolgen muss die " +
+                    "Script-Engine neu gestartet werden (über Button in Control/Adapters->script-engine->reload machbar)<br>"+
+                    "You can read more information about scripting under <a href='http://iobroker.com/manual.html#scripting' target='_blank'>ioBroker.com</a>",
 
-            "ru": "Ping драйвер позволяет сканировать устройства в локальной сети. Для этого используется ICMP протокол.<br>"
-                    +"Для каждого устройства создается объект \"PING.<IP>.STATE\",содержащий состояние устройства, как true или false.<br>"
-                    +"Только системы с установленной командой ping поддерживаются для Homander: Linux, Windows, MacOS.<br>"
-                    +"Все устройства, поддерживающие ICMP, могут быть просканированны этим драйвером."
+            "ru": "Этот драйвер позволяет запускать пользовательские скрипты, которые должны находиться в папке \"scripts\".<br>" +
+                    "<b>Внимание:</b> для того, чтобы сделанные изменения вступили в силу, необходимо перезапустить script-engine.<br>" +
+                    "Это можно сделать через меню Control/Драйвера->script-engine->обновить.<br>" +
+                    "Побольше о script-engine можно прочитать <a href='http://iobroker.com/manual.html#scripting' target='_blank'>тут - ioBroker.com</a>"
+
         }
     };
 </script>

@@ -4,28 +4,28 @@ var ccuWords = {
     "NO"                : {"en": "NO",                   "de": "NEIN",                "ru": "НЕТ"},
     "TRUE"              : {"en": "TRUE",                 "de": "TRUE",                "ru": "ДА"},
     "false"             : {"en": "false",                "de": "false",               "ru": "нет"},
-    "Homander"          : {"en": "Homander",             "de": "Homander",            "ru": "Homander"},
+    "ioBroker"          : {"en": "ioBroker",             "de": "ioBroker",            "ru": "ioBroker"},
     "Addons"            : {"en": "Addons",               "de": "Addons",              "ru": "Дополнения"},
     "Adapter"           : {"en": "Adapter",              "de": "Adapter",             "ru": "Драйвера"},
     "Data"              : {"en": "Data",                 "de": "Daten",               "ru": "Данные"},
     "Info"              : {"en": "Info",                 "de": "Info",                "ru": "Информация"},
     "Control"           : {"en": "Control",              "de": "Steuerung",           "ru": "Контроль"},
     "Settings"          : {"en": "Settings",             "de": "Einstellungen",       "ru": "Настройки"},
-    "Homander installed Version:" : {"en": "Homander installed Version:", "de": "Installierte Homander Version:", "ru": "Локальная версия Homander"},
-    "Homander available Version:" : {"en": "Homander available Version:", "de": "Verfügbare Homander Version:", "ru": "Доступная версия Homander"},
+    "ioBroker installed Version:" : {"en": "ioBroker installed Version:", "de": "Installierte ioBroker Version:", "ru": "Локальная версия ioBroker"},
+    "ioBroker available Version:" : {"en": "ioBroker available Version:", "de": "Verfügbare ioBroker Version:", "ru": "Доступная версия ioBroker"},
     "update"            : {"en": "update",               "de": "update",              "ru": "обновить"},
     "check"             : {"en": "check",                "de": "prüfen",              "ru": "проверить"},
     "CCU reachable:"    : {"en": "CCU reachable:",       "de": "CCU erreichbar:",     "ru": "CCU полключена:"},
     "ReGa Up:"          : {"en": "ReGa Up:",             "de": "ReGa erreichbar:",    "ru": "ReGa запущена:"},
     "ReGa Data loaded:" : {"en": "ReGa Data loaded:",    "de": "ReGa-Data geladen:",  "ru": "Данные ReGa загружены:"},
     "RPC Inits:"        : {"en": "RPC Inits:",           "de": "RPC Inits:",          "ru": "RPC Inits:"},
-    "script-engine enabled:" : {"en": "script-engine enabled:","de": "Script-Engine aktiviert:", "ru": "Script-engine запущена:"},
+    "Geographical position"  : {"en": "Geographical position:", "de": "Geografische Position", "ru": "Географическое положение:"},
     "logging enabled:"  : {"en": "logging enabled:",     "de": "Logging aktiviert:",  "ru": "Протоколлирование:"},
     "Last ReGa poll:"   : {"en": "Last ReGa poll:",      "de": "Letzte ReGa-Anfrage:","ru": "Последний ReGa запрос:"},
     "Last rf event:"    : {"en": "Last rf event:",       "de": "Letzte rf-Ereignis:", "ru": "Последнее rf событие:"},
     "Last hs485 event:" : {"en": "Last hs485 event:",    "de": "Letzte hs485-Ereignis:","ru": "Последнее hs485 событие:"},
     "Last CUx event:"   : {"en": "Last CUx event:",      "de": "Letzte CUx-Ereignis:","ru": "Последнее CUxD событие:"},
-    "restart Homander"    : {"en": "restart Homander",       "de": "Neustart Homander",     "ru": "Перезапуск Homander"},
+    "restart ioBroker"    : {"en": "restart ioBroker",       "de": "Neustart ioBroker",     "ru": "Перезапуск ioBroker"},
     "refresh Addons"    : {"en": "refresh Addons",       "de": "Addons neu laden",    "ru": "Перезагрузить дополнения"},
     "reload adapter data"  : {"en": "reload CCU data",      "de": "CCU-Daten neu laden", "ru": "Считать ReGa-данные заново"},
     "create Backup"     : {"en": "create Backup",        "de": "Backup erzeugen",     "ru": "Создать резервную копию"},
@@ -69,15 +69,16 @@ var ccuWords = {
     "datastore"         : {"en": "datastore",            "de": "datastore",           "ru": "datastore"},
     "refresh"           : {"en": "refresh",              "de": "Neu laden",           "ru": "Обновить"},
     "delete"            : {"en": "delete",               "de": "löschen",             "ru": "удалить"},
-    "anonymize"         : {"en": "anonymize",           "de": "anonymisieren",        "ru": "Убрать персональную информацию"},
+    "anonymize"         : {"en": "anonymize",            "de": "anonymisieren",       "ru": "Убрать персональную информацию"},
     "save changes"      : {"en": "save changes",         "de": "Änderungen speichern","ru": "Сохранить изменения"},
     "install"           : {"en": "install",              "de": "Installieren",        "ru": "Установить"},
-    "Homander is reloading all CCU data. Please be patient. This page will be automatically reloaded when finished.": {
-        "en": "Homander is reloading all CCU data. Please be patient. This page will be automatically reloaded when finished.",
-        "de": "Homander lädt alle Daten aus CCU neu. Bitte warten. Die Seite wird automatisch neu geladen, wenn Ladeforgang abgeschlossen wird.",
-        "ru": "Homander загружает все данные из CCU. Запаситесь терпением. Страница автоматически обновиться по окончании загрузки."
+    "Add adapter:"      : {"en": "Add adapter:",          "de": "Adapter hinzufügen:",  "ru": "Добавить драйвер:"},
+    "ioBroker is reloading all CCU data. Please be patient. This page will be automatically reloaded when finished.": {
+        "en": "ioBroker is reloading all CCU data. Please be patient. This page will be automatically reloaded when finished.",
+        "de": "ioBroker lädt alle Daten aus CCU neu. Bitte warten. Die Seite wird automatisch neu geladen, wenn Ladeforgang abgeschlossen wird.",
+        "ru": "ioBroker загружает все данные из CCU. Запаситесь терпением. Страница автоматически обновиться по окончании загрузки."
         },
-    "Homander is restarting.": {"en": "Homander is restarting.", "de": "Homander startet neu. ",       "ru": "Homander перезапускается."},
+    "ioBroker is restarting.": {"en": "ioBroker is restarting.", "de": "ioBroker startet neu. ",       "ru": "ioBroker перезапускается."},
     "name"              : {"en": "name",                  "de": "Name",               "ru": "Имя"},
     "enabled"           : {"en": "enabled",               "de": "Aktiviert",          "ru": "Активен"},
     "installed version" : {"en": "installed version",     "de": "Lokale Version",     "ru": "Локальная версия"},
@@ -104,28 +105,37 @@ var ccuWords = {
     "eventCount"        : {"en": "eventCount",            "de": "Anzahl Meldungen",   "ru": "Кол-во сообщений"},
     "Error"             : {"en": "Error",                 "de": "Fehler",             "ru": "Ошибка"},
     "File saved."       : {"en": "File saved.",           "de": "Datei gespeichert",  "ru": "Файл сохранён."},
-    "Homander disconnected":{"en": "Homander disconnected",   "de": "Verbindung zu Homander getrennt", "ru": "Связь с Homander прервана"},
+    "ioBroker disconnected":{"en": "ioBroker disconnected",   "de": "Verbindung zu ioBroker getrennt", "ru": "Связь с ioBroker прервана"},
     "install started"   : {"en": "install started",       "de": "Installation ist gestartet","ru": "Установка начата"},
-    "Homander settings saved. Please restart Homander" : {
-        "en": "Homander settings saved. Please restart Homander",
-        "de": "Homander Einstellungen gespeichert. Bitte Homander neu starten",
-        "ru": "Homander настройки сохранены. Перезапустите Homander"
+    "Delete adapter?"   : {"en": "Delete adapter?",       "de": "Adapter löschen?",   "ru": "Удалить драйвер?"},
+    "Delete"            : {"en": "Delete",                "de": "Löschen",            "ru": "Удалить"},
+    "Cancel"            : {"en": "Cancel",                "de": "Abbrechen",          "ru": "Отмена"},
+    "connections"       : {"en": "Connections",           "de": "Verbindungen",       "ru": "Подключения"},
+    "Connections"       : {"en": "Connections",           "de": "Verbindungen",       "ru": "Подключения"},
+    "Self name"         : {"en": "Client name",           "de": "Clientname",         "ru": "Имя подключения"},
+    "AdapterID"         : {"en": "Adapter ID",            "de": "Adapter ID",         "ru": "ID драйвера"},
+    "SocketID"          : {"en": "Socket ID",             "de": "Socket ID",          "ru": "ID сокета"},
+    "Connect on"          : {"en": "Connect on",          "de": "Anschlußzeit",       "ru": "Время соединения"},
+    "ioBroker settings saved. Please restart ioBroker" : {
+        "en": "ioBroker settings saved. Please restart ioBroker",
+        "de": "ioBroker Einstellungen gespeichert. Bitte ioBroker neu starten",
+        "ru": "Настройки ioBroker сохранены. Перезапустите ioBroker"
         },
     "Error: invalid JSON" : {"en": "Error: invalid JSON", "de": "Fehler: ungültiges JSON","ru": "Ошибка: неправильный формат JSON"},
-    " adapter settings saved. Please restart Homander" : {
+    " adapter settings saved. Please restart ioBroker" : {
         "en": " adapter settings saved. Please reload adapter",
         "de": " Adpater-Einstellungen gespeichert. Bitte Adapter neu laden",
-        "ru": ": настройки сохранены. Перезапустите Homander или драйвер"
+        "ru": ": настройки сохранены. Перезапустите ioBroker или драйвер"
         },
     "Apply backup started. Please be patient..." : {
         "en": "Apply backup started. Please be patient...",                 
         "de": "Apply backup started. Please be patient...",             
         "ru": "Резервная копия распаковывается. Подождтите..."
         },
-    "Apply backup done. Restart Homander" : {
-        "en": "Apply backup done. Restart Homander",
-        "de": "Sicherung eingespielt. Bitte Homander neu starten.",
-        "ru": "Резервная копия распакована. Перезапустите Homander"
+    "Apply backup done. Restart ioBroker" : {
+        "en": "Apply backup done. Restart ioBroker",
+        "de": "Sicherung eingespielt. Bitte ioBroker neu starten.",
+        "ru": "Резервная копия распакована. Перезапустите ioBroker"
         },
     "Error: Backup failed." : {
         "en": "Error: Backup failed.",                 
@@ -151,5 +161,10 @@ var ccuWords = {
         "en": "Error: update failed.",                 
         "de": "Fehler: update konnte nicht durchgeführt werden.",             
         "ru": "Ошибка: обновление не удалось."
-        }
+        },
+    "This adapter will be deleted and settings cannot be recovered.<br>Are you sure?" : {
+        "en": "This adapter will be deleted and settings cannot be recovered.<br>Are you sure?",
+        "de": "Dieser Adapter wird gelöscht und die Einstellungen werden verlohren.<br>Sind Sie sicher?",
+        "ru": "Этот драйвер будет удален и настройки для него будут потеряны.<br>Вы уверены?"
+    }
 };

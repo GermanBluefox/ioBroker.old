@@ -1,5 +1,5 @@
 /**
- *      Homander Back up solution
+ *      ioBroker Back up solution
  *      01'2014 Bluefox
  *
  *      Version 0.1
@@ -56,7 +56,7 @@ function copyFile (source, destination) {
                 }
                 // Remove directory
                 deleteFolderRecursive (backupFolder+"/backup");
-                // Signal to Homander.js the file name
+                // Signal to ioBroker.js the file name
                 process.send (zipFile.replace (__dirname + "/www", "").replace (__dirname + "\www", ""));
                 logger.info ("create-backup file " + zipFile.replace (__dirname + "/www", "").replace (__dirname + "\www", "") + "");
             });
@@ -133,7 +133,7 @@ function createBackup (isLog, zipFileName) {
     copyDirectory (__dirname + "/datastore", bckDir + "/datastore", ".gitignore");
     copyDirectory (__dirname + "/scripts",   bckDir + "/scripts", ".gitignore");
     if (isLog) {
-        copyDirectory (__dirname + "/log", bckDir + "/log", "Homander.log,.gitignore");
+        copyDirectory (__dirname + "/log", bckDir + "/log", "ioBroker.log,.gitignore");
     }
     fs.mkdirSync (bckDir + "/www");
     fs.mkdirSync (bckDir + "/www/dashui");

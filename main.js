@@ -1,9 +1,9 @@
 /**
- *      Homander - HOMe cOMmANDER for Node.js
+ *      ioBroker - HOMe cOMmANDER for Node.js
  *
  *      Socket.IO based Home Automation Interface
  *
- *      Copyright (c) 2013-2014 hobbyquacker, bluefox http://homander.com
+ *      Copyright (c) 2013-2014 hobbyquacker, bluefox http://iobroker.com
  *
  *      CC BY-NC 3.0
  *
@@ -27,22 +27,14 @@ settings.stringTableLanguage = settings.stringTableLanguage || "de";
 
 var fs =        require('fs-extra'),
     logger =    require(__dirname+'/logger.js'),
-    express =   require('express'),
-    http =      require('http'),
-    https =     require('https'),
     crypto =    require('crypto'),
     request =   require('request'),
     cp =        require('child_process'),
-    url =       require('url'),
     socketio =  require('socket.io'),
     scheduler = require('node-schedule'),
     _ =         require('lodash'),
     c =         require(__dirname+'/www/lib/js/sysConst.js'),
     os=         require('os'),
-    app,
-    appSsl,
-    server,
-    serverSsl,
     io,
     ioSsl,
     devlogCache = [],
@@ -56,20 +48,19 @@ var socketList    = [], // Array of connected clients. It can be adapters, GUI
     dataValues    = [], // Values of the objects
     metaIndex     = {   // Mapping
         name:     [],   // [adpaterId] - {"name of object1": id, "name of object2": id}
-        location: [],   // "living room" : [id1, id2, id3], "wc" : [id4, id2, id5] - ids are sorted
-        role:     [],   // "Media" : [id1, id4], "Light" : [id6, id7] - ids are sorted
         device:   [],   // [id10, id20, id30] - List of all devices
         channel:  [],   // [id11, id12, id21, id31 ] - List of all channels
         point:    [],   // [id1, id4] - List of all points
-        specType: [],   // "PLAY:3" : [id1], "HM-SEC1" : [id50], ...
+        specType: {},   // "PLAY:3" : [id1], "HM-SEC1" : [id50], ...
         address:  [],   // [adpaterId] - specific addresses, like 192.168.2.3 or HQE67655444 {["SFGHE":id1], ["abcd": id2]}
         adapter:  {},   // { "sonos": 4, "System": 0, "script": 1}
         favorite: {},   // { "Light" : [34,56,43], "Heat": [123, 45, 64]}
+        location: {},   // "living room" : [id1, id2, id3], "wc" : [id4, id2, id5] - ids are sorted
+        role:     {},   // "Media" : [id1, id4], "Light" : [id6, id7] - ids are sorted
         adapterInfo: [] // [ {name: System", type: "System" }]
     };
 
 var statuses = {};
-
 
 /** @namespace settings.logging.enabled */
 /** @namespace settings.logging.file */
@@ -79,13 +70,8 @@ var statuses = {};
 /** @namespace settings.adapters */
 
 if (settings.ioListenPort) {
-    app = express();
-
-    if (settings.authentication && settings.authentication.enabled) {
-        app.use(express.basicAuth(settings.authentication.user, settings.authentication.password));
-    }
-
-    server = require('http').createServer(app);
+    io = socketio.listen(parseInt(settings.ioListenPort) + 1);
+    initSocketIO(io);
 }
 
 // Create md5 hash of user and password
@@ -107,28 +93,28 @@ if (settings.ioListenPortSsl) {
         logger.error(err.message);
     }
     if (options) {
-        appSsl = express();
-        if (settings.authentication && settings.authentication.enabledSsl) {
-            appSsl.use(express.basicAuth(settings.authentication.user, settings.authentication.password));
-        }
-        serverSsl = require('https').createServer(options, appSsl);
+         // Create the Socket.io Server over the HTTPS Server
+        ioSsl = socketio.listen(parseInt(settings.ioListenPortSsl) + 1, options);
+        initSocketIO(ioSsl);
     }
 }
 
-logger.info   ("Homander  starting version "+settings.version + " copyright (c) 2013-2014 hobbyquaker,bluefox http://homander.com");
-logger.verbose("Homander  commandline "+JSON.stringify(process.argv));
+
+logger.info   ("ioBroker  starting version "+settings.version + " copyright (c) 2013-2014 hobbyquaker,bluefox http://iobroker.com");
+logger.verbose("ioBroker  commandline "+JSON.stringify(process.argv));
 
 // Create system variables
 dataValues[c.cSystem] = [];
 if (!settings.adapters) {
     settings.adapters = [];
 }
-settings.adapters[c.cSystem] = {name: "System", parent: c.cSystem, description: "Homander system variables"};
+// Define system adapters: web server and system variables
+settings.adapters[c.cSystem]    = {type: "System",    parent: c.cSystem,    description: "ioBroker system variables"};
+settings.adapters[c.cWebServer] = {type: "webServer", parent: c.cWebServer, description: "ioBroker web server"};
 
 loadPersistentObjects();
 loadDataValues();
 createSystemVariables ();
-initWebserver();
 initAdapters();
 
 function createSystemVariables () {
@@ -154,19 +140,6 @@ function createSystemVariables () {
             isPersistent:false,
             isLogged:    false,
             description: "Is all adapters and script engine started"
-        },
-        // Object value
-        false
-    );
-// Create web server status variable
-    addObject (c.cSystem, c.cSystemWebServerUp,
-        // Object description
-        {   name:        "WebServerUp",
-            specType:    "Variable",
-            type:        c.cObjTypePoint,
-            isPersistent:false,
-            isLogged:    false,
-            description: "If web server started"
         },
         // Object value
         false
@@ -208,11 +181,11 @@ var stats = {
             if (stats.counters[cnt].last === undefined) {
                 stats.counters[cnt].last = 0;
             }
-            logger.info("Homander stats  "+cnt+": "+((stats.counters[cnt].value - stats.counters[cnt].last)/settings.statsIntervalMinutes).toFixed(0)+"msg/min");
+            logger.info("ioBroker stats  "+cnt+": "+((stats.counters[cnt].value - stats.counters[cnt].last)/settings.statsIntervalMinutes).toFixed(0)+"msg/min");
             stats.counters[cnt].last = stats.counters[cnt].value;
         }
-        logger.info("Homander stats  "+socketList.length+" Socket.IO Clients connected");
-        logger.verbose("Homander uptime "+stats.uptime());
+        logger.info("ioBroker stats  "+socketList.length+" Socket.IO Clients connected");
+        logger.verbose("ioBroker uptime "+stats.uptime());
     }
 };
 
@@ -239,7 +212,9 @@ function locationOf (element, arr, start, end) {
     start = start || 0;
     end = end || arr.length;
     var pivot = parseInt(start + (end - start) / 2, 10);
-    if (arr[pivot][2] === element[2]) return pivot;
+    if (arr[pivot][2] === element[2]) {
+        return pivot;
+    }
     if (end - start <= 1)
         return arr[pivot][2] > element[2] ? pivot - 1 : pivot;
     if (arr[pivot][2] < element[2]) {
@@ -254,6 +229,11 @@ function insertSorted (arr, element) {
         arr.push(element);
     }
     else {
+        var insertIn = locationOf(element, arr);
+        if (arr[insertIn][2] == element[2]) {
+            return;
+        }
+
         arr.splice(locationOf(element, arr) + 1, 0, element);
     }
     return arr;
@@ -316,7 +296,10 @@ function getObjValue (value) {
 //                    or as array [val, ts, ack, lc]
 //                    if just value is set up - timestamp and lastchanged will be current time, ack = true
 //                    If "ack" (acknowledged) is false, this value was set by user from GUI or from script. If true means value came from adapter or it is variable
-function addObject (adapterID, objID, obj, value) {
+function addObject (adapterID, objID, obj, value, infromAdapters) {
+    adapterID = getAdapterId (adapterID);
+    objID = parseInt (objID);
+
     if (adapterID === undefined || adapterID > c.cAdapterMask) {
         logger.error("addObject "+adapterID+ "." + objID +" " + JSON.stringify(obj) + " has invalid format: adapterID is invalid");
         return null;
@@ -363,8 +346,17 @@ function addObject (adapterID, objID, obj, value) {
         dataValues [adapterID] = [];
     }
 
+    // Convert children array from string to number
+    if (obj.children) {
+        for (var t = 0, len = obj.children.length; t < len; t++) {
+            if (typeof obj.children[t] == "string") {
+                obj.children[t] = parseInt (obj.children[t]);
+            }
+        }
+    }
+
     obj.adapterId = adapterID;
-    if (obj.location && typeof obj.location == "string") {
+    if (obj.location) {
         obj.location = [obj.location];
     }
 
@@ -417,7 +409,7 @@ function addObject (adapterID, objID, obj, value) {
     // Arrange indexes
     // Name
     if (!metaIndex.name[adapterID]) {
-        metaIndex.name[adapterID] = [];
+        metaIndex.name[adapterID] = {};
     }
 
     if (metaIndex.name[adapterID][obj.name] !== undefined && metaIndex.name[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
@@ -471,7 +463,7 @@ function addObject (adapterID, objID, obj, value) {
     // address
     if (obj.address) {
         if (!metaIndex.address[adapterID]) {
-            metaIndex.address[adapterID] = [];
+            metaIndex.address[adapterID] = {};
         }
         if (metaIndex.address[adapterID][obj.name] !== undefined && metaIndex.address[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
             logger.warn("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has not an unique address");
@@ -481,6 +473,11 @@ function addObject (adapterID, objID, obj, value) {
         }
     }
     logger.verbose("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " inserted succsessfully");
+
+    if (infromAdapters) {
+        // Inform GUI and adapters about new object
+        sendNewObject(indexObject[2/*cCombyId*/], obj), value;
+    }
 
     return obj;
 }
@@ -510,6 +507,83 @@ function sendEvent (id, value) {
     }
 }
 
+// Inform adapter and GUI about one new object
+function sendNewObject (id, value) {
+    logger.verbose("sendNewObject: " + settings.adapters[id[0/*cAdapterId*/]].name + "." + metaObjects[id[0/*cAdapterId*/]][id[1/*cObjectId*/]].name + " value - " + JSON.stringify(value));
+    // go through all sockets
+    for (var i = 0, len = socketList.length; i < len; i++)  {
+        if (socketList[i]) {
+            // Send information only to multiData adapters or GUI
+            var adapterId = socketList[i].adapterId;
+            if (!adapterId || metaIndex.adapterInfo[adapterId].multiData) {
+                socketList[i].emit('newObject', id[2/*cCombyId*/], metaObjects[id[0/*cAdapterId*/]][id[1/*cObjectId*/]], value);
+            }
+        }
+    }
+}
+
+// inform adapters and GUI about many new objects for one adapter. Adapter must read information for this adapter anew.
+function sendNewObjects (adapterId) {
+    logger.verbose("sendNewObjects: new data points in adapter " + settings.adapters[adapterId].name);
+    // go through all sockets
+    for (var i = 0, len = socketList.length; i < len; i++)  {
+        if (socketList[i]) {
+            // Send information only to multiData adapters or GUI
+            var adapterId = socketList[i].adapterId;
+            if (!adapterId || metaIndex.adapterInfo[adapterId].multiData) {
+                socketList[i].emit('newObjects', adapterId);
+            }
+        }
+    }
+}
+
+// Convert adapter from string or number to number
+// Following input is enabled: "ccu", 10, "10", "ccu_10"
+function getAdapterId (adapter) {
+    var adapterId;
+    if (typeof adapter == 'string' && adapter.length > 0) {
+        if (adapter[0] >= '0' && adapter[0] <= '9') {
+            adapterId = parseInt (adapter);
+        } else {
+            adapterId = metaIndex.adapter[adapter];
+        }
+    } else {
+        adapterId = adapter;
+    }
+
+    if (!settings.adapters[adapterId]){
+        // invalid adapter
+        log.warn ("getId requested invalid adapter " + JSON.stringify (adapter));
+        return null;
+    }
+
+    return adapterId;
+}
+
+function addObjects (adapterId, isMerge, newObjects, newValues) {
+    if (!isMerge && metaObjects[adapterId]) {
+        metaObjects[adapterId] = null;
+    }
+    if (newObjects) {
+        for (var id in newObjects) {
+            if (newObjects[id]) {
+                addObject(adapterId, id, newObjects[id], undefined, false);
+            }
+        }
+    }
+
+    sendNewObjects(adapterId);
+
+    if (newValues) {
+        for (var id in newValues) {
+            if (newValues[dp]) {
+                setPointValue([adapterId, id], newValues[dp]);
+            }
+        }
+    }
+
+}
+
 // following forms are supported:
 // integer, like 1048577 ( 0x100001 => [1, 1, 1048577])
 // array  [adapterid, objid] => [adapterid, objid, comby]
@@ -517,7 +591,7 @@ function sendEvent (id, value) {
 // string "sonos.pointname"  => [1, 1, 1048577]
 // string "1.pointname"      => [1, 1, 1048577]
 // string "sonos.address"    => [1, 1, 1048577]
-function getId (id) {
+function getId (id, adapterId) {
     // Convert id if not array
     var typeId = typeof id;
     if (typeId != "array") {
@@ -531,23 +605,7 @@ function getId (id) {
                 // extract adapter ID
                 var adapterId = id.substring (0, p);
                 id = id.substring(p + 1);
-                if (adapterId.length > 0 && adapterId[0] >= '0' && adapterId[0] <= '9') {
-                    adapterId = parseInt (adapterId);
-                    if (!settings.adapters[adapterId]){
-                        // invalid adapter
-                        log.warn ("getId requested invalid adapter " + JSON.stringify (id));
-                        return null;
-                    }
-                } else {
-                    if (metaIndex.adapter[adapterId]) {
-                        adapterId = metaIndex.adapter[adapterId];
-                    }
-                    else {
-                        // invalid adapter
-                        log.warn ("getId requested invalid adapter " + JSON.stringify (id));
-                        return null;
-                    }
-                }
+                adapterId = getAdapterId(adapterId);
                 // Try to find name
                 var _id = metaIndex.name[adapterId][id];
                 if (_id === undefined) {
@@ -566,9 +624,25 @@ function getId (id) {
                 id = [adapterId, id];
             }
         }
+        else { // number
+            if (adapterId) {
+                adapterId = getAdapterId(adapterId);
+                id = [adapterId, id];
+            }
+            else {
+                id = [id >> c.cAdapterShift, id & c.cObjectsMask, id];
+            }
+        }
     }
 
-    if (!id[2]) id[2] = id[0] << c.cAdapterShift | id[1];
+    if (!id[2]){
+        id[2] = id[0] << c.cAdapterShift | id[1];
+    }
+
+    if (!id[0]) {
+        logger.error('getId: invalid adapter id [' + id[0] + ','+id[1]+','+id[2]+']');
+    }
+
     return id;
 }
 
@@ -623,295 +697,15 @@ function setPointValue(id, value) {
     }
 }
 
-function uploadParser(req, res, next) {
-    var urlParts = url.parse(req.url, true);
-    var query = urlParts.query;
-
-    //console.log(query);
-
-    // get the temporary location of the file
-    var tmpPath = req.files.file.path;
-
-    logger.info("webserver <-- file upload "+req.files.file.name+" ("+req.files.file.size+" bytes) to "+tmpPath);
-    logger.info("webserver <-- file upload query params "+JSON.stringify(query));
-
-    var newName;
-    if (query.id) {
-        newName = query.id + "." + req.files.file.name.replace(/.*\./, "");
-    } else {
-        newName = req.files.file.name;
-    }
-    // set where the file should actually exists - in this case it is in the "images" directory
-    var targetPath = __dirname + "/" + query.path + newName;
-    logger.info("webserver     move uploaded file "+tmpPath+" -> "+targetPath);
-
-    // move the file from the temporary location to the intended location
-    fs.rename(tmpPath, targetPath, function(err) {
-        if (err) throw err;
-        // delete the temporary file, so that the explicitly set temporary upload dir does not get filled with unwanted files
-        fs.unlink(tmpPath, function() {
-            if (err) throw err;
-            res.send('File uploaded to: ' + targetPath + ' - ' + req.files.file.size + ' bytes');
-        });
-    });
-}
-
-function findDatapoint (needle, hssdp) {
-    if (!dataValues[needle]) {
-        if (metaIndex.Name[needle]) {
-            // Get by Name
-            needle = metaIndex.Name[needle][0];
-            if (hssdp) {
-                // Get by Name and Datapoint
-                if (metaObjects[needle].DPs) {
-                    return metaObjects[needle].DPs[hssdp];
-                } else {
-                    return false;
-                }
-            }
-        } else if (metaIndex.Address[needle]) {
-            needle = metaIndex.Address[needle][0];
-            if (hssdp) {
-                // Get by Channel-Address and Datapoint
-                if (metaObjects[needle].DPs && metaObjects[needle].DPs[hssdp]) {
-                    needle = metaObjects[needle].DPs[hssdp];
-                }
-            }
-        } else if (needle.match(/[a-zA-Z-]+\.[0-9A-Za-z-]+:[0-9]+\.[A-Z_]+/)) {
-            // Get by full BidCos-Address
-            addrArr = needle.split(".");
-            if (metaIndex.Address[addrArr[1]]) {
-                needle = metaObjects[metaIndex.Address[addrArr[1]]].DPs[addArr[2]];
-            }
-        } else {
-            return false;
-        }
-    }
-    return needle;
-
-}
-
-function restApiPost(req, res) {
-    var path = req.params[0];
-    var tmpArr = path.split("/");
-    var command = tmpArr[0];
-    var response;
-
-    var responseType = "json";
-    var status = 500;
-
-    res.set("Access-Control-Allow-Origin", "*");
-
-    switch(command) {
-        case "setBulk":
-            response = [];
-            status = 200;
-            for (var item in req.body) {
-                var parts = item.split("/");
-                var dp = findDatapoint(parts[0], parts[1]);
-                if (dp == false) {
-                    sres = {error: "datapoint "+item+" not found"};
-                } else if (req.body[item] === undefined) {
-                    sres = {error: "no value given for "+item};
-                } else {
-                    sres = {id:dp,value:req.body[item]};
-                    setState(dp,req.body[item]);
-                }
-                response.push(sres);
-            }
-            break;
-        default:
-            response = {error: "command "+command+" unknown"};
-    }
-    switch (responseType) {
-        case "json":
-            res.json(response);
-            break;
-        case "plain":
-            res.set('Content-Type', 'text/plain');
-            res.send(response);
-            break;
-
-    }
-}
-
-/* TODO */
-function restApi(req, res) {
-
-    var path = req.params[0];
-    var tmpArr = path.split("/");
-    var command = tmpArr[0];
-    var response;
-
-    var responseType = "json";
-    var status = 500;
-
-    res.set("Access-Control-Allow-Origin", "*");
-
-    switch(command) {
-        case "getPlainValue":
-            responseType = "plain";
-            if (!tmpArr[1]) {
-                response = "error: no datapoint given";
-                break;
-            }
-            var dp = findDatapoint(tmpArr[1], tmpArr[2]);
-            if (!dp || !dataValues[dp]) {
-                response = "error: datapoint not found";
-            } else {
-                response = String(dataValues[dp][0]);
-                status = 200;
-            }
-            break;
-        case "get":
-
-            if (!tmpArr[1]) {
-                response = {error: "no object/datapoint given"};
-                break;
-            }
-            var dp_ = findDatapoint(tmpArr[1], tmpArr[2]);
-            if (!dp_) {
-                response = {error: "object/datapoint not found"};
-            } else {
-                status = 200;
-                response = {id: dp_};
-                if (dataValues[dp_]) {
-                    response.value      = dataValues[dp_][0];
-                    response.ack        = dataValues[dp_][2];
-                    response.timestamp  = dataValues[dp_][1];
-                    response.lastchange = dataValues[dp_][3];
-                }
-                if (metaObjects[dp_]) {
-                    for (var attr in metaObjects[dp_]) {
-                        response[attr] = metaObjects[dp_][attr];
-                    }
-                }
-            }
-            break;
-        case "getBulk":
-            if (!tmpArr[1]) {
-                response = {error: "no dataValues given"};
-                break;
-            }
-            status = 200;
-            response = {};
-            var dps = tmpArr[1].split(",");
-            for (var i = 0; i < dps.length; i++) {
-                var parts = dps[i].split(";");
-                dp = findDatapoint(parts[0], parts[1]);
-                if (dp) {
-                    response[dps[i]] = {"val":dataValues[dp][0], "ts":dataValues[dp][3]};
-                }
-            }
-            break;
-        case "set":
-            if (!tmpArr[1]) {
-                response = {error: "object/datapoint not given"};
-            }
-            var dp = findDatapoint(tmpArr[1], tmpArr[2]);
-            var value;
-            if (req.query) {
-                value = req.query.value;
-            }
-            if (!value) {
-                response = {error: "no value given"};
-            } else {
-                if (value === "true") {
-                    value = true;
-                } else if (value === "false") {
-                    value = false;
-                } else if (!isNaN(value)) {
-                    value = parseFloat(value);
-                }
-                setState(dp, value);
-                status = 200;
-                response = {id:dp,value:value};
-            }
-            break;
-        case "toggle":
-            if (!tmpArr[1]) {
-                response = {error: "object/datapoint not given"};
-            }
-            var dp = findDatapoint(tmpArr[1], tmpArr[2]);
-                var value = dataValues[dp][0];
-                if (value === true) value = 1;
-                if (value === false) value = 0;
-                value = 1 - parseInt(value, 10);
-                setState(dp, value);
-                status = 200;
-                response = {id:dp,value:value};
-            break;
-        case "setBulk":
-            response = [];
-            status = 200;
-            for (var item in req.query) {
-                var parts = item.split("/");
-                var dp = findDatapoint(parts[0], parts[1]);
-                if (dp == false) {
-                    sres = {error: "datapoint "+item+" not found"};
-                } else if (req.query[item] === undefined) {
-                    sres = {error: "no value given for "+item};
-                } else {
-                    sres = {id:dp,value:req.query[item]};
-                    setState(dp,req.query[item]);
-                }
-                response.push(sres);
-            }
-            break;
-        case "programExecute":
-            if (!tmpArr[1]) {
-                response = {error: "no program given"};
-            }
-            var id;
-            if (metaIndex.Program && metaIndex.PROGRAM.indexOf(tmpArr[1]) != -1) {
-                id = tmpArr[1]
-            } else if (metaIndex.Name && metaIndex.Name[tmpArr[1]]) {
-                if (metaObjects[tmpArr[1]].TypeName == "PROGRAM") {
-                    id = metaIndex.Name[tmpArr[1]][0];
-                }
-            }
-            if (!id) {
-                response = {error: "program not found"};
-            } else {
-                status = 200;
-                programExecute(id);
-                response = {id:id};
-            }
-            break;
-        case "getIndex":
-            response = metaIndex;
-            status = 200;
-            break;
-        case "getObjects":
-            response = metaObjects;
-            status = 200;
-            break;
-        case "getdataValues":
-            response = dataValues;
-            status = 200;
-            break;
-        default:
-            response = {error: "command "+command+" unknown"};
-    }
-    switch (responseType) {
-        case "json":
-            res.json(response);
-            break;
-        case "plain":
-            res.set('Content-Type', 'text/plain');
-            res.send(response);
-            break;
-
-    }
-
-}
-
 // Create metaIndex.adapter - address adapter by name
 function initAdapters() {
     if (!extDone) {
         // extend index information for adapters
         for (var i = 0, len = settings.adapters.length; i < len; i++) {
             if (settings.adapters[i]) {
+                if (!settings.adapters[i].name) {
+                    settings.adapters[i].name = settings.adapters[i].type;
+                }
                 metaIndex.adapterInfo[i] = settings.adapters[i];
                 if (metaIndex.adapter[settings.adapters[i].name]) {
                     logger.error("initAdapters: Duplicate adapter name " + settings.adapters[i].name);
@@ -928,94 +722,10 @@ function initAdapters() {
         }
 
         extDone = true;
-        setTimeout(startAdapters, 45000);
+        // Start web server immediately
+        startAdapter(c.cWebServer);
+        setTimeout(startAdapters, 5000);
     }
-}
-
-function initWebserver() {
-    if (app) {
-        if (settings.useCache) {
-            var oneYear = 30758400000;
-            app.use('/', express.static(__dirname + '/www', { maxAge: oneYear }));
-            app.use('/log', express.static(__dirname + '/log', { maxAge: oneYear }));
-        }
-        else {
-            app.use('/', express.static(__dirname + '/www'));
-            app.use('/log', express.static(__dirname + '/log'));
-        }
-
-        // File Uploads
-        app.use(express.bodyParser({uploadDir:__dirname+'/tmp'}));
-        app.post('/upload', uploadParser);
-
-        app.get('/api/*', restApi);
-
-        app.post('/api/*', restApiPost);
-        app.get('/auth/*', function (req, res) {
-            res.set('Content-Type', 'text/javascript');
-            if (settings.authentication.enabled) {
-                res.send("var socketSession='"+ authHash+"';");
-            } else {
-                res.send("var socketSession='nokey';");
-            }
-        });
-        app.get('/lang/*', function (req, res) {
-            res.set('Content-Type', 'text/javascript');
-			res.send("var systemLang='"+ (settings.language || 'en') +"';");
-        });    
-	}
-
-    if (appSsl) {
-        if (settings.useCache) {
-            var oneYear_ = 30758400000;
-            appSsl.use('/', express.static(__dirname + '/www', { maxAge: oneYear_ }));
-            appSsl.use('/log', express.static(__dirname + '/log', { maxAge: oneYear_ }));
-        }
-        else {
-            appSsl.use('/', express.static(__dirname + '/www'));
-            appSsl.use('/log', express.static(__dirname + '/log'));
-        }
-
-        // File Uploads
-        appSsl.use(express.bodyParser({uploadDir:__dirname+'/tmp'}));
-        appSsl.post('/upload', uploadParser);
-
-        appSsl.get('/api/*', restApi);
-        appSsl.post('/api/*', restApiPost);
-        appSsl.get('/auth/*', function (req, res) {
-            res.set('Content-Type', 'text/javascript');
-            if (settings.authentication.enabledSsl) {
-                res.send("var socketSession='"+ authHash+"';");
-            } else {
-                res.send("var socketSession='nokey';");
-            }
-        });
-        appSsl.get('/lang/*', function (req, res) {
-            res.set('Content-Type', 'text/javascript');
-			res.send("var systemLang='"+ (settings.language || 'en') +"';");
-        });    
-    }
-
-    if (settings.authentication && settings.authentication.enabled) {
-        logger.info("webserver     basic auth enabled");
-    }
-
-    if (server) {
-        server.listen(settings.ioListenPort);
-        logger.info("webserver     listening on port "+settings.ioListenPort);
-        io = socketio.listen(server);
-        io.set('logger', { debug: function(obj) {logger.debug("socket.io: "+obj)}, info: function(obj) {logger.debug("socket.io: "+obj)} , error: function(obj) {logger.error("socket.io: "+obj)}, warn: function(obj) {logger.warn("socket.io: "+obj)} });
-        initSocketIO(io);
-    }
-
-    if (serverSsl){
-        serverSsl.listen(settings.ioListenPortSsl);
-        logger.info("webserver ssl listening on port "+settings.ioListenPortSsl);
-        ioSsl = socketio.listen(serverSsl);
-        ioSsl.set('logger', { debug: function(obj) {logger.debug("socket.io: "+obj)}, info: function(obj) {logger.debug("socket.io: "+obj)} , error: function(obj) {logger.error("socket.io: "+obj)}, warn: function(obj) {logger.warn("socket.io: "+obj)} });
-        initSocketIO(ioSsl);
-    }
-    setPointValue ([c.cSystem, c.cSystemWebServerUp], true);
 }
 
 function formatTimestamp() {
@@ -1231,24 +941,39 @@ function delAdapterObjects (adapterId) {
     }
 }
 
-
-
-function addObjects (adapterId, isMerge, newObjects, newValues) {
-    if (!isMerge && metaObjects[adapterId]) {
-        metaObjects[adapterId] = null;
+function getConnInfo () {
+    var info = [];
+    this.subscribeConnInfo = true;
+    for (var i = 0, len = socketList.length; i < len; i++) {
+        var type = (socketList[i].adapterId && settings.adapters[socketList[i].adapterId]) ? settings.adapters[socketList[i].adapterId].type : '';
+        info.push({id: i,
+            adapterId: socketList[i].adapterId,
+            name: (socketList[i].adapterId && settings.adapters[socketList[i].adapterId]) ? settings.adapters[socketList[i].adapterId].name : '',
+            type: type,
+            socketId: socketList[i].id,
+            selfName: socketList[i].adapterName || (type.charAt(0).toUpperCase() + type.slice(1) + " Adapter"),
+            ip: socketList[i].handshake.address.address,
+            port: socketList[i].handshake.address.port,
+            connTime: socketList[i].adapterConnTime
+        });
     }
-    if (newObjects) {
-        for (var id in newObjects) {
-            if (newObjects[id]) {
-                addObject (adapterId, id, newObjects[id]);
-            }
+    return info;
+}
+
+function updateConnInfo () {
+    // Inform control panel about changes
+    var isSomeoneWants = false;
+    for (var i = 0, len = socketList.length; i < len; i++) {
+        if (socketList[i].subscribeConnInfo) {
+            isSomeoneWants = true;
+            break;
         }
     }
-
-    if (newValues) {
-        for (var id in newValues) {
-            if (newValues[dp]) {
-                setPointValue([adapterId, id], newValues[dp]);
+    if (isSomeoneWants) {
+        var info = getConnInfo();
+        for (var i = 0, len = socketList.length; i < len; i++) {
+            if (socketList[i].subscribeConnInfo) {
+                socketList[i].emit ('updateConnInfo', info);
             }
         }
     }
@@ -1257,18 +982,18 @@ function addObjects (adapterId, isMerge, newObjects, newValues) {
 function initSocketIO(_io) {
 	_io.configure(function (){
 	  this.set('authorization', function (handshakeData, callback) {
-        var isHttps = (serverSsl !== undefined && this.server == serverSsl);
+        var isHttps = (this === ioSsl);
         if ((!isHttps && settings.authentication.enabled) || (isHttps && settings.authentication.enabledSsl)) {
             // do not check if localhost
             if(handshakeData.address.address.toString() == "127.0.0.1") {
-                logger.verbose("Homander  local authetication " + handshakeData.address.address);
+                logger.verbose("ioBroker  local authetication " + handshakeData.address.address);
                 callback(null, true);
             } else
             if (handshakeData.query["key"] === undefined || handshakeData.query["key"] != authHash) {
-                logger.warn("Homander  authetication error on "+(isHttps ? "https from " : "http from ") + handshakeData.address.address);
+                logger.warn("ioBroker  authetication error on "+(isHttps ? "https from " : "http from ") + handshakeData.address.address);
                 callback ("Invalid session key", false);
             } else{
-                logger.verbose("Homander  authetication successful on "+(isHttps ? "https from " : "http from ") + handshakeData.address.address);
+                logger.verbose("ioBroker  authetication successful on "+(isHttps ? "https from " : "http from ") + handshakeData.address.address);
                 callback(null, true);
             }
         }
@@ -1284,22 +1009,39 @@ function initSocketIO(_io) {
         logger.verbose("socket.io <-- " + address.address + ":" + address.port + " " + socket.transport + " connected");
 
         // By default receive all updates of all variables
+        // By default receive all updates of all variables
         socket.adapterId  = 0;
-        socket.subsscribe = null;
+        socket.subscribe                = null; // array of objects, that this adapter wants to get the updates for
+        socket.subscribeConnInfo        = false;// If socketList changes should be sent
+        socket.subscribeMetaDataChanges = false;// If by new objects or deletion the update should be sent
+        socket.adapterConnTime          = formatTimestamp();
+
+        updateConnInfo();
 
         // Request adapter id, if no id or 0 (cSystem), send all messages
-        socket.emit ("getAdapterId", function (adapterId) {
-            this.adapterId = parseInt (adapterId);
+        socket.emit ("getAdapterId", function (adapterId, name) {
+            this.adapterId   = parseInt (adapterId);
+            this.adapterName = name;
             logger.info ("Connected adapter " + adapterId + " on " + this.id);
+
+            updateConnInfo();
         });
 
-        socket.on ("subscribe", function (id) {
-            if (this.adapterId && settingd.adapters[this.adapterId].mut)
-            id = getId (id);
-            if (!socket.subsscribe) {
-                socket.subsscribe = [];
+        socket.on('subscribe', function (id) {
+            id = getId(id, this.adapterId);
+            if (!socket.subscribe) {
+                socket.subscribe = [];
             }
-            insertSorted(socket.subsscribe, id);
+            insertSorted(socket.subscribe, id);
+        });
+
+        // Send diagnostics information about connected adpters and GUI
+        socket.on('getConnInfo', function (callback) {
+            this.subscribeConnInfo = true;
+            socket.subscribeMetaDataChanges = true;
+            if (callback) {
+                callback(getConnInfo());
+            }
         });
 
         socket.on('log', function (sev, msg) {
@@ -1316,23 +1058,23 @@ function initSocketIO(_io) {
         });
 
         socket.on('execCmd', function (cmd, callback) {
-            logger.info("Homander  exec "+cmd);
+            logger.info("ioBroker  exec "+cmd);
             cp.exec(cmd, callback);
         });
 
         socket.on('execScript', function (script, arg, callback) {
-            logger.info("Homander  script "+script + "["+arg+"]");
+            logger.info("ioBroker  script "+script + "["+arg+"]");
             var scr_prc = cp.fork (__dirname + script, arg);
             var result = null;
             scr_prc.on('message', function(obj) {
                 // Receive results from child process
                 console.log ("Message: " + obj);
-				logger.debug("Homander  script result: " + obj);
+				logger.debug("ioBroker  script result: " + obj);
                 result = obj;
             });
             scr_prc.on ("exit", function (code, signal) {
                 if (callback) {
-					logger.debug("Homander  script end result: " + result);
+					logger.debug("ioBroker  script end result: " + result);
                     callback (script, arg, result);
                 }
             });
@@ -1342,10 +1084,10 @@ function initSocketIO(_io) {
            return startAdapter(adapter)
         });
 
-        socket.on('updateAddon', function (url, name) {
+        socket.on('updateAddon', function (_url, name) {
             var path = __dirname + "/update-addon.js";
-            logger.info("Homander  starting "+path+" "+url+" "+name);
-            var updateProcess = cp.fork(path, [url, name]);
+            logger.info("ioBroker  starting "+path+" "+_url+" "+name);
+            var updateProcess = cp.fork(path, [_url, name]);
             updateProcess.on("close", function (code) {
                 var msg;
                 if (code == 0) {
@@ -1365,7 +1107,7 @@ function initSocketIO(_io) {
         socket.on('updateSelf', function () {
             var path = __dirname + "/update-self.js";
             settings.updateSelfRunning = true;
-            logger.info("Homander  starting "+path);
+            logger.info("ioBroker  starting "+path);
             var updateProcess = cp.fork(path);
             if (io) {
                 io.sockets.emit('ioMessage', 'Update started. Please be patient...');
@@ -1382,10 +1124,10 @@ function initSocketIO(_io) {
                     if (ioSsl) {
                         ioSsl.sockets.emit('ioMessage', 'Update done. Restarting...');
                     }
-                    logger.info('Homander  update done. restarting...');
-                    cp.fork(__dirname+'/Homander-server.js', ['restart']);
+                    logger.info('ioBroker  update done. restarting...');
+                    cp.fork(__dirname+'/ioBroker-server.js', ['restart']);
                 } else {
-                    logger.error("Homander  update failed.");
+                    logger.error("ioBroker  update failed.");
                     if (io) {
                         io.sockets.emit("ioMessage", "Error: update failed.");
                     }
@@ -1399,7 +1141,7 @@ function initSocketIO(_io) {
 
         socket.on('createBackup', function (isWithLog) {
             var path = __dirname + "/backup.js";
-            logger.info("Homander  starting "+path);
+            logger.info("ioBroker  starting "+path);
             var backupProcess = cp.fork(path, [isWithLog ? "createWithLog": "create"]);
             var fileName = "";
             backupProcess.on("message", function (msg) {
@@ -1420,7 +1162,7 @@ function initSocketIO(_io) {
                         ioSsl.sockets.emit("readyBackup", fileName);
                     }
                 } else {
-                    logger.error("Homander  Backup failed.");
+                    logger.error("ioBroker  Backup failed.");
                     if (io) {
                         io.sockets.emit("ioMessage", "Error: Backup failed.");
                     }
@@ -1433,7 +1175,7 @@ function initSocketIO(_io) {
 
         socket.on('applyBackup', function (fileName) {
             var path = __dirname + "/backup.js";
-            logger.info("Homander  starting "+path);
+            logger.info("ioBroker  starting "+path);
             var backupProcess = cp.fork(path, [fileName]);
 
             if (io) {
@@ -1445,13 +1187,13 @@ function initSocketIO(_io) {
             backupProcess.on("close", function (code) {
                 if (code == 0) {
                     if (io) {
-                        io.sockets.emit("applyReady", "Apply backup done. Restart Homander");
+                        io.sockets.emit("applyReady", "Apply backup done. Restart ioBroker");
                     }
                     if (ioSsl) {
-                        ioSsl.sockets.emit("applyReady", "Apply backup done. Restart Homander");
+                        ioSsl.sockets.emit("applyReady", "Apply backup done. Restart ioBroker");
                     }
                 } else {
-                    logger.error("Homander  Apply backup failed.");
+                    logger.error("ioBroker  Apply backup failed.");
                     if (io) {
                         io.sockets.emit("applyError", "Error: Backup failed.");
                     }
@@ -1499,8 +1241,8 @@ function initSocketIO(_io) {
         });
 
         socket.on('restart', function () {
-            logger.info("Homander  received restart command");
-            cp.fork(__dirname+"/homander-server.js", ["restart"]);
+            logger.info("ioBroker  received restart command");
+            cp.fork(__dirname+"/iobroker-server.js", ["restart"]);
         });
 
         socket.on('readdir', function (path, callback) {
@@ -1563,7 +1305,7 @@ function initSocketIO(_io) {
 
             fs.readFile(settings.datastorePath+name, function (err, data) {
                 if (err) {
-                    logger.error("Homander  failed loading file "+settings.datastorePath+name);
+                    logger.error("ioBroker  failed loading file "+settings.datastorePath+name);
                     callback(undefined);
                 } else {
                     try {
@@ -1581,7 +1323,7 @@ function initSocketIO(_io) {
 
             fs.readFile(__dirname+"/"+name, function (err, data) {
                 if (err) {
-                    logger.error("Homander  failed loading file "+__dirname+"/"+name);
+                    logger.error("ioBroker  failed loading file "+__dirname+"/"+name);
                     callback(undefined);
                 } else {
                     callback(data.toString());
@@ -1592,7 +1334,7 @@ function initSocketIO(_io) {
         socket.on('touchFile', function (name, callback) {
             logger.verbose("socket.io <-- touchFile "+name);
             if (!fs.existsSync(__dirname+"/"+name)) {
-                logger.info("Homander  creating empty file "+name);
+                logger.info("ioBroker  creating empty file "+name);
                 var stream = fs.createWriteStream(__dirname+"/"+name);
                 stream.end();
             }
@@ -1603,7 +1345,7 @@ function initSocketIO(_io) {
 
             fs.unlink(__dirname+"/"+name, function (err, data) {
                 if (err) {
-                    logger.error("Homander  failed deleting file "+__dirname+"/"+name);
+                    logger.error("ioBroker  failed deleting file "+__dirname+"/"+name);
                     callback(false);
                 } else {
                     callback(true);
@@ -1616,7 +1358,7 @@ function initSocketIO(_io) {
 
             fs.readFile(__dirname+"/"+name, function (err, data) {
                 if (err) {
-                    logger.error("Homander  failed loading file "+__dirname+"/"+name);
+                    logger.error("ioBroker  failed loading file "+__dirname+"/"+name);
                     callback(undefined);
                 } else {
                     try {
@@ -1629,10 +1371,10 @@ function initSocketIO(_io) {
             });
         });
 
-        socket.on('getUrl', function (url, callback) {
-            logger.info("Homander  GET "+url);
-            if (url.match(/^https/)) {
-                https.get(url, function(res) {
+        socket.on('getUrl', function (_url, callback) {
+            logger.info("ioBroker  GET "+_url);
+            if (_url.match(/^https/)) {
+                https.get(_url, function(res) {
                     var body = "";
                     res.on("data", function (data) {
                         body += data;
@@ -1642,10 +1384,10 @@ function initSocketIO(_io) {
                     });
 
                 }).on('error', function(e) {
-                        logger.error("Homander  GET "+url+" "+ e.message);
+                        logger.error("ioBroker  GET "+_url+" "+ e.message);
                     });
             } else {
-                http.get(url, function(res) {
+                http.get(_url, function(res) {
                     var body = "";
                     res.on("data", function (data) {
                         body += data;
@@ -1654,7 +1396,7 @@ function initSocketIO(_io) {
                         callback(body);
                     });
                 }).on('error', function(e) {
-                    logger.error("Homander  GET "+url+" "+ e.message);
+                    logger.error("ioBroker  GET "+_url+" "+ e.message);
                 });
             }
         });
@@ -1692,7 +1434,7 @@ function initSocketIO(_io) {
         });
 
         socket.on('getAdapterSettings', function (adapterId, callback) {
-            callback(settings.adapters[adapterId].settings);
+            callback(settings.adapters[adapterId] ? settings.adapters[adapterId].settings : null);
         });
 
         socket.on('setSettings', function (_settings, callback) {
@@ -1705,9 +1447,17 @@ function initSocketIO(_io) {
             }
 
             logger.verbose("socket.io <-- writeFile settings.json");
-            fs.writeFile(settings.datastorePath+"settings.json", JSON.stringify(settings));
+            var _settings = _.clone(settings);
+            // Remove standart adapters
+            _settings.adapters[c.cSystem] = null;
+            _settings.adapters[c.cScript] = null;
+
+            fs.writeFile(settings.datastorePath+"settings.json", JSON.stringify(_settings));
+            _settings = null;
             // Todo Fehler abfangen
-            if (callback) { callback(true); }
+            if (callback) {
+                callback(true);
+            }
         });
 
         socket.on('getVersion', function(callback) {
@@ -1916,12 +1666,12 @@ function initSocketIO(_io) {
 function _startAdapterHelper (adapterId) {
     var isRestarting = false;
     // Kill adapter before start
-    if (childrenAdapter[_adapter].process && !childrenAdapter[adapterId].period) {
+    if (childrenAdapter[adapterId].process && !childrenAdapter[adapterId].period) {
         try{
             isRestarting = true;
-            logger.info("Homander  killing adapter " + settings.adapters[adapterId].name);
-            childrenAdapter[_adapter].process.kill ();
-            childrenAdapter[_adapter].process = null;
+            logger.info("ioBroker  killing adapter " + settings.adapters[adapterId].name);
+            childrenAdapter[adapterId].process.kill ();
+            childrenAdapter[adapterId].process = null;
         }
         catch (e)
         {
@@ -1929,8 +1679,8 @@ function _startAdapterHelper (adapterId) {
         }
     }
 
-    logger.info("Homander  starting adapter "+settings.adapters[adapterId].name+(childrenAdapter[adapterId].period ? ' (interval='+period+'ms)': ''));
-    var path = __dirname + '/adapter/'+settings.adapters[adapterId].name+"/"+settings.adapters[adapterId].name+'.js';
+    logger.info("ioBroker  starting adapter "+settings.adapters[adapterId].name+(childrenAdapter[adapterId].period ? ' (interval='+period+'ms)': ''));
+    var path = __dirname + '/adapter/'+settings.adapters[adapterId].type+"/"+settings.adapters[adapterId].type+'.js';
     var env = _.clone (process.env);
 
     env.adapterId   = adapterId;
@@ -1938,7 +1688,7 @@ function _startAdapterHelper (adapterId) {
     env.serverPort  = settings.ioListenPort || settings.ioListenPortSsl;
     env.serverIsSec = settings.ioListenPort ? false: (settings.ioListenPortSsl ? true: false);
 
-    childrenAdapter[_adapter].process = cp.fork (path, env);
+    childrenAdapter[adapterId].process = cp.fork (path, env);
 
     return isRestarting ? "Adapter started" : "Adapter restarted";
 }
@@ -1976,6 +1726,7 @@ function startAdapter (adapterId) {
     // Start adapter immediately
     _startAdapterHelper (adapterId);
 }
+
 // start all adapters and scrit engine
 function startAdapters () {
     if (!settings.adapters) {
@@ -1991,7 +1742,7 @@ function startAdapters () {
 
     // Start as last script engine
     if (settings.adapters[c.cScript]) {
-        setTimeout(startScriptEngine, (i*3000), c.cScript);
+        setTimeout(startAdapter, (i*3000), c.cScript);
     }
 }
 
@@ -2008,7 +1759,7 @@ function stop() {
         // Terminate all adapters
         for (var i = 0, len = childrenAdapter.length; i < len; i++) {
             if (childrenAdapter[i] && childrenAdapter[adapter].process) {
-                logger.info("Homander  killing adapter "+settings.adapters[i].name);
+                logger.info("ioBroker  killing adapter "+settings.adapters[i].name);
                 if (childrenAdapter[adapter].timerAdapter){
                     clearTimeout (childrenAdapter[adapter].timerAdapter);
                     childrenAdapter[adapter].timerAdapter = null;
@@ -2025,17 +1776,17 @@ function stop() {
         });
 
         if (io && io.server) {
-            logger.info("Homander  closing http server");
+            logger.info("ioBroker  closing http server");
             io.server.close();
             io.server = undefined;
         }
         if (ioSsl && ioSsl.server) {
-            logger.info("Homander  closing https server");
+            logger.info("ioBroker  closing https server");
             ioSsl.server.close();
             ioSsl.server = undefined;
         }
     } catch (e) {
-        logger.error("Homander  something went wrong while terminating: "+e)
+        logger.error("ioBroker  something went wrong while terminating: "+e)
     }
 
     saveDataValues();
@@ -2045,9 +1796,9 @@ function stop() {
 }
 
 function quit() {
-    logger.verbose("Homander  quit");
-	logger.info("Homander  uptime "+stats.uptime());
-	logger.info("Homander  terminating");
+    logger.verbose("ioBroker  quit");
+	logger.info("ioBroker  uptime "+stats.uptime());
+	logger.info("ioBroker  terminating");
 	setTimeout(function () {
 		process.exit(0);
 	}, 250);
@@ -2070,13 +1821,13 @@ function writeLog() {
     devlogCache = [];
 
     var l = tmp.length;
-    logger.verbose("Homander  writing "+l+" lines to "+settings.logging.file);
+    logger.verbose("ioBroker  writing "+l+" lines to "+settings.logging.file);
 
     var file = __dirname+"/log/"+settings.logging.file;
 
     fs.appendFile(file, tmp.join(""), function (err) {
         if (err) {
-            logger.error("Homander  writing to "+settings.logging.file + " error: "+JSON.stringify(err));
+            logger.error("ioBroker  writing to "+settings.logging.file + " error: "+JSON.stringify(err));
         }
     });
 
@@ -2093,7 +1844,7 @@ function moveLog(file) {
         ("0" + (ts.getMonth() + 1).toString(10)).slice(-2) + '-' +
         ("0" + (ts.getDate()).toString(10)).slice(-2);
 
-    logger.info("Homander  moving Logfile "+file+" "+timestamp);
+    logger.info("ioBroker  moving Logfile "+file+" "+timestamp);
 
     fs.rename(__dirname+"/log/"+file, __dirname+"/log/"+file+"."+timestamp, function() {
         logMoving[file] = false;
@@ -2140,7 +1891,7 @@ function savePersistentObjects() {
     }
 
     fs.writeFileSync(settings.datastorePath+name, JSON.stringify(objects));
-    logger.info("Homander  saved persistent objects");
+    logger.info("ioBroker  saved persistent objects");
     objects = null;
 }
 
@@ -2156,7 +1907,7 @@ function loadPersistentObjects() {
                 }
             }
         }
-        logger.info("Homander      loaded persistent objects");
+        logger.info("ioBroker      loaded persistent objects");
         return true;
     } catch (e) {
         return false;
@@ -2181,7 +1932,7 @@ function saveDataValues() {
     }
 
     fs.writeFileSync(settings.datastorePath+name, JSON.stringify(content));
-    logger.info("Homander  saved dataValues");
+    logger.info("ioBroker  saved dataValues");
     content = null;
 }
 
@@ -2191,7 +1942,7 @@ function loadDataValues() {
         var x = fs.readFileSync(settings.datastorePath+"io-persistent-dps.json");
         dps = JSON.parse(x);
         dataValues = dps;
-        logger.info("Homander  loaded dataValues");
+        logger.info("ioBroker  loaded dataValues");
         return true
     } catch (e) {
         return false;

@@ -1,5 +1,5 @@
 /**
- *      Homander pushover Adapter
+ *      ioBroker pushover Adapter
  *      11'2013-2014 hobbyquacker, bluefox
  *
  *      Version 0.1
@@ -44,7 +44,7 @@ if (process.env.serverPort) {
 }
 
 socket.on('connect', function () {
-    logger.info("adapter pushover  connected to Homander");
+    logger.info("adapter pushover  connected to ioBroker");
     this.emit ("getAdapterSettings", process.env.adapterId, function (data) {
         settings = data;
         if (settings.user && settings.token) {
@@ -88,7 +88,7 @@ socket.on('send', function (obj) {
 });
 
 socket.on('disconnect', function () {
-    logger.info('adapter pushover  disconnected from Homander');
+    logger.info('adapter pushover  disconnected from ioBroker');
 });
 
 function stop() {

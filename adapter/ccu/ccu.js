@@ -16,39 +16,8 @@ if (typeof __dirname == "undefined") {
     var __dirname = "";
 }
 
-var settings = require(__dirname+'/../../settings.js');
-var c =        require(__dirname+'/../../www/lib/js/sysConst.js');
-
-/** @namespace settings.adapters.ccu */
-var ccuSettings = settings.adapters[process.env.adapterId].settings;
-
-if (!ccuSettings) {
-    process.exit();
-}
-
-ccuSettings.stringTableLanguage = ccuSettings.stringTableLanguage || "de";
-
-
-/** @namespace ccuSettings.regahss */
-/** @namespace ccuSettings.binrpc */
-/** @namespace ccuSettings.binrpc.checkEvents */
-/** @namespace ccuSettings.ccuIp */
-/** @namespace ccuSettings.stringTableLanguage */
-ccuSettings.regahss.metaScripts = [
-    "favorites",
-    "variables",
-    "programs",
-    "rooms",
-    "functions",
-    "devices",
-    "channels",
-    "datapoints",
-    "alarms"
-];
-
-ccuSettings.binrpc.inits = [];
-
-var logger =    require(__dirname+'/../../logger.js'),
+var c =         require(__dirname+'/../../www/lib/js/sysConst.js'),
+    logger =    require(__dirname+'/../../logger.js'),
     binrpc =    require(__dirname+"/binrpc.js"),
     rega =      require(__dirname+"/rega.js"),
     request =   require('request'),
@@ -59,182 +28,9 @@ var logger =    require(__dirname+'/../../logger.js'),
     initsDone    = false,
     lastEvents   = {},
     socket,
-    stringTable  = null;
-
-// Use only one socket http or https
-if (settings.ioListenPort) {
-    socket = io.connect("127.0.0.1", {
-        port: settings.ioListenPort
-    });
-} else if (settings.ioListenPortSsl) {
-    socket = io.connect("127.0.0.1", {
-        port: settings.ioListenPortSsl,
-        secure: true
-    });
-} else {
-    process.exit();
-}
-
-if (ccuSettings.binrpc.rfdEnabled) {
-    ccuSettings.binrpc.inits.push({id:ccuSettings.binrpc.rfdId, port:ccuSettings.binrpc.rfdPort});
-}
-if (ccuSettings.binrpc.hs485dEnabled) {
-    ccuSettings.binrpc.inits.push({id:ccuSettings.binrpc.hs485dId, port:ccuSettings.binrpc.hs485dPort});
-}
-if (ccuSettings.binrpc.cuxdEnabled) {
-    ccuSettings.binrpc.inits.push({id:ccuSettings.binrpc.cuxdId, port:ccuSettings.binrpc.cuxdPort});
-}
-
-socket.on ("getAdapterId", function (callback) {
-    if (callback) {
-        callback (process.env.adapterId);
-    }
-});
-
-socket.on('connect', function () {
-    logger.info("adapter CCU   connected to Homander");
-
-    socket.on ("reloadData", function () {
-        regaReady = false;
-        socket.emit ("setStatus", "ccuRegaData", regaReady);
-        clearRegaData();
-        loadRegaData(0, null, true);
-    });
-
-
-    socket.on ("restartRPC", function () {
-        initRpc();
-    });
-
-    socket.on ("event", function (id, val) {
-        // Execute only if ack == false
-        if (val.ack) {
-            return;
-        }
-        id = id & c.cObjectsMask;
-        // If id is alarm
-        // TODO if the detection of alarm valid
-        if (regaObjects[id].TypeName == "ALARMDP") {
-            logger.verbose("adapter CCU   alarmReceipt "+id+" "+regaObjects[id].Name);
-            regahss.script("dom.GetObject("+id+").AlReceipt();");
-            return;
-        }
-        if (regaObjects[id].TypeName == "PROGRAM") {
-            programExecute (id);
-            return;
-        };
-
-        // Bidcos or Rega?
-        /*
-         if (ctrlIndex.HSSDP.indexOf(id) != -1) {
-         // Set State via xmlrpc_bin
-         var name = ctrlObjects[id].Name;
-         var parts = name.split(".");
-         var iface = parts[0],
-         port = homematic.ifacePorts[iface],
-         channel = parts[1],
-         dp = parts[2];
-         // TODO BINRPC FLOAT....?
-         homematic.request(port, "setValue", [channel, dp, val.toString()]);
-         logger.info("BINRPC setValue "+channel+dp+" "+val);
-         } else { */
-        // Set State via ReGa
-        var xval;
-        if (typeof val == "string") {
-            xval = "'" + val.replace(/'/g, '"') + "'";
-        } else {
-            xval = val;
-        }
-        var script = "Write(dom.GetObject("+id+").State("+xval+"));";
-
-        regahss.script(script, function (data) {
-            //logger.verbose("rega      <-- "+data);
-            /*if (callback) {
-                callback(data);
-            }*/
-        });
-
-        //}
-
-        // Bei Update von Thermostaten den nächsten Event von SET_TEMPERATURE und CONTROL_MODE ignorieren!
-        if (regaObjects[id] && regaObjects[id].Name) {
-
-            if (regaObjects[id].Name.match(/SET_TEMPERATURE$/) || regaObjects[id].Name.match(/MANU_MODE$/) || regaObjects[id].Name.match(/SETPOINT$/)) {
-                var parent   = regaObjects[regaObjects[id].Parent];
-                var setTemp  = parent.DPs["SET_TEMPERATURE"];
-                var ctrlMode = parent.DPs["CONTROL_MODE"];
-                if (ignoreNextUpdate.indexOf(setTemp) == -1) {
-                    ignoreNextUpdate.push(setTemp);
-                }
-                if (ignoreNextUpdate.indexOf(ctrlMode) == -1) {
-                    ignoreNextUpdate.push(ctrlMode);
-                }
-                logger.verbose("adapter CCU   ignoring next update for "+JSON.stringify(ignoreNextUpdate));
-            }
-        }
-    });
-
-    socket.on ("runScript", function (script, callback) {
-        logger.verbose("socket.io <-- script");
-        regahss.script(script, function (data) {
-            if (callback) {
-                callback(data);
-            }
-        });
-    });
-});
-
-socket.on('disconnect', function () {
-    logger.info("adapter CCU   disconnected from Homander");
-});
-
-if (ccuSettings.binrpc.checkEvents && ccuSettings.binrpc.checkEvents.enabled) {
-    setInterval(function () {
-        if (initsDone && ccuRegaUp) {
-            var now = Math.floor((new Date()).getTime() / 1000);
-            /** @namespace ccuSettings.binrpc.checkEvents.testAfter */
-            var check = now - ccuSettings.binrpc.checkEvents.testAfter;
-            /** @namespace ccuSettings.binrpc.checkEvents.reinitAfter */
-            var reinit = now - ccuSettings.binrpc.checkEvents.reinitAfter;
-
-            for (var i = 0; i < ccuSettings.binrpc.inits.length; i++) {
-                var init = ccuSettings.binrpc.inits[i];
-                if (lastEvents[init.id] < reinit) {
-
-                    if (ccuSettings.binrpc.checkEvents.testTrigger[init.id]) {
-                        logger.warn("binrpc    --> re-init "+init.id);
-
-                        homematic.request(init.port, "init", ["xmlrpc_bin://"+ccuSettings.binrpc.listenIp+":"+ccuSettings.binrpc.listenPort,init.id], function(data, name) {
-                            if (data === "") {
-                                logger.info("binrpc    <-- init on "+name+" successful");
-                                lastEvents[init.id] = Math.floor((new Date()).getTime() / 1000);
-                            } else {
-                                logger.error("binrpc    <-- init on "+name+" failure");
-                            }
-                        });
-
-                    } else {
-                        logger.warn("binrpc        checkEvent.trigger undefined for "+init.id);
-                    }
-
-                } else if (lastEvents[init.id] < check) {
-                    logger.verbose("binrpc        checking init "+init.id);
-                    if (ccuSettings.binrpc.checkEvents.testTrigger[init.id]) {
-                        var id = regaIndex.Name[ccuSettings.binrpc.checkEvents.testTrigger[init.id]][0];
-                        regahss.script("dom.GetObject("+id+").State(true);");
-                    } else {
-                        logger.warn("binrpc        checkEvent.trigger undefined for "+init.id);
-                    }
-                } else {
-                    logger.verbose("binrpc        init "+init.id+" ok - last event "+(now-lastEvents[init.id])+"s ago");
-                }
-            }
-        }
-
-        updateStatus();
-
-    }, (ccuSettings.binrpc.checkEvents.interval * 1000));
-}
+    stringTable  = null,
+    settings = {},
+    regahss = null;
 
 var homematic,
     datapoints  = [],
@@ -254,50 +50,262 @@ var homematic,
         PROGRAM:        []
     },
     regaReady = false;
-
 var ignoreNextUpdate = [];
-
-logger.info ("adapter CCU   starting adapter CCU");
-
-function updateStatus () {
-    socket.emit("updateStatus");
-}
-
-var regahss = new rega({
-    ccuIp: ccuSettings.ccuIp,
-    ready: function(err) {
-        if (err == "ReGaHSS down") {
-            logger.error("rega          ReGaHSS down");
-            ccuReachable = true;
-            ccuRegaUp    = false;
-            socket.emit ("setStatus", {ccuReachable: ccuReachable, ccuRegaUp: ccuRegaUp});
-            tryReconnect();
-        } else if (err == "CCU unreachable") {
-            logger.error("adapter CCU   CCU unreachable");
-            ccuReachable = false;
-            ccuRegaUp    = false;
-            socket.emit ("setStatus", {ccuReachable: ccuReachable, ccuRegaUp: ccuRegaUp});
-            tryReconnect();
-        } else {
-            logger.info("rega          ReGaHSS up");
-            ccuReachable = true;
-            ccuRegaUp    = true;
-
-            regahss.loadStringTable(ccuSettings.stringTableLanguage, function (data) {
-                stringTable = data;
-                regahss.checkTime(loadRegaData);
-            });
-
-            socket.emit ("setStatus", {ccuReachable: ccuReachable, ccuRegaUp:ccuRegaUp});
-        }
-    }
-});
-
 var stats = {
     cuxd:  0,
     wired: 0,
     rf:    0
 };
+
+// Connect to server
+// 4 arguments will be sent by server to adapter: serverPort, serverIsSec, serverIp and adapterId
+logger.info ('ccu adapter  connecting to ioBroker');
+socket = io.connect(process.env.serverIp || "127.0.0.1", {
+    port:   process.env.serverPort  || 8081,
+    secure: process.env.serverIsSec || false
+});
+
+/** @namespace settings.adapters.ccu */
+function onConnect (socket) {
+    logger.info("ccu adapter  connected to ioBroker");
+    socket.emit ("getAdapterSettings", process.env.adapterId, function (data) {
+        settings = data;
+        if (!settings) {
+            process.exit();
+        }
+        /** @namespace settings.regahss */
+        /** @namespace settings.binrpc */
+        /** @namespace settings.binrpc.checkEvents */
+        /** @namespace settings.ccuIp */
+        /** @namespace settings.stringTableLanguage */
+        settings.regahss.metaScripts = [
+            "favorites",
+            "variables",
+            "programs",
+            "rooms",
+            "functions",
+            "devices",
+            "channels",
+            "datapoints",
+            "alarms"
+        ];
+
+        settings.binrpc.inits = [];
+        settings.stringTableLanguage = settings.stringTableLanguage || "de";
+
+        ccuInit ();
+    });
+}
+
+socket.on('connect', function () {
+    onConnect(this);
+});
+
+socket.on('reconnect', function () {
+    //onConnect(this);
+});
+
+socket.on('reloadData', function () {
+    regaReady = false;
+    socket.emit ("setStatus", "ccuRegaData", regaReady);
+    clearRegaData();
+    loadRegaData(0, null, true);
+});
+
+socket.on('restartRPC', function () {
+    initRpc();
+});
+
+socket.on('event', function (id, val) {
+    // Execute only if ack == false
+    if (val.ack) {
+        return;
+    }
+    id = id & c.cObjectsMask;
+    // If id is alarm
+    // TODO if the detection of alarm valid
+    if (regaObjects[id].TypeName == "ALARMDP") {
+        logger.verbose("adapter CCU   alarmReceipt "+id+" "+regaObjects[id].Name);
+        regahss.script("dom.GetObject("+id+").AlReceipt();");
+        return;
+    }
+    if (regaObjects[id].TypeName == "PROGRAM") {
+        programExecute (id);
+        return;
+    };
+
+    // Bidcos or Rega?
+    /*
+     if (ctrlIndex.HSSDP.indexOf(id) != -1) {
+     // Set State via xmlrpc_bin
+     var name = ctrlObjects[id].Name;
+     var parts = name.split(".");
+     var iface = parts[0],
+     port = homematic.ifacePorts[iface],
+     channel = parts[1],
+     dp = parts[2];
+     // TODO BINRPC FLOAT....?
+     homematic.request(port, "setValue", [channel, dp, val.toString()]);
+     logger.info("BINRPC setValue "+channel+dp+" "+val);
+     } else { */
+    // Set State via ReGa
+    var xval;
+    if (typeof val == "string") {
+        xval = "'" + val.replace(/'/g, '"') + "'";
+    } else {
+        xval = val;
+    }
+    var script = "Write(dom.GetObject("+id+").State("+xval+"));";
+
+    regahss.script(script, function (data) {
+        //logger.verbose("rega      <-- "+data);
+        /*if (callback) {
+         callback(data);
+         }*/
+    });
+
+    //}
+
+    // Bei Update von Thermostaten den nächsten Event von SET_TEMPERATURE und CONTROL_MODE ignorieren!
+    if (regaObjects[id] && regaObjects[id].Name) {
+
+        if (regaObjects[id].Name.match(/SET_TEMPERATURE$/) || regaObjects[id].Name.match(/MANU_MODE$/) || regaObjects[id].Name.match(/SETPOINT$/)) {
+            var parent   = regaObjects[regaObjects[id].Parent];
+            var setTemp  = parent.DPs["SET_TEMPERATURE"];
+            var ctrlMode = parent.DPs["CONTROL_MODE"];
+            if (ignoreNextUpdate.indexOf(setTemp) == -1) {
+                ignoreNextUpdate.push(setTemp);
+            }
+            if (ignoreNextUpdate.indexOf(ctrlMode) == -1) {
+                ignoreNextUpdate.push(ctrlMode);
+            }
+            logger.verbose("adapter CCU   ignoring next update for "+JSON.stringify(ignoreNextUpdate));
+        }
+    }
+});
+
+socket.on('runScript', function (script, callback) {
+    logger.verbose("socket.io <-- script");
+    regahss.script(script, function (data) {
+        if (callback) {
+            callback(data);
+        }
+    });
+});
+
+socket.on('getAdapterId', function (callback) {
+    if (callback) {
+        callback (process.env.adapterId);
+    }
+});
+
+socket.on('disconnect', function () {
+    logger.info("adapter CCU   disconnected from ioBroker");
+});
+
+function ccuInit () {
+    if (settings.binrpc.rfdEnabled) {
+        settings.binrpc.inits.push({id:settings.binrpc.rfdId, port:settings.binrpc.rfdPort});
+    }
+    if (settings.binrpc.hs485dEnabled) {
+        settings.binrpc.inits.push({id:settings.binrpc.hs485dId, port:settings.binrpc.hs485dPort});
+    }
+    if (settings.binrpc.cuxdEnabled) {
+        settings.binrpc.inits.push({id:settings.binrpc.cuxdId, port:settings.binrpc.cuxdPort});
+    }
+    if (settings.binrpc.checkEvents && settings.binrpc.checkEvents.enabled) {
+        setInterval(function () {
+            if (initsDone && ccuRegaUp) {
+                var now = Math.floor((new Date()).getTime() / 1000);
+                /** @namespace settings.binrpc.checkEvents.testAfter */
+                var check = now - settings.binrpc.checkEvents.testAfter;
+                /** @namespace settings.binrpc.checkEvents.reinitAfter */
+                var reinit = now - settings.binrpc.checkEvents.reinitAfter;
+
+                for (var i = 0; i < settings.binrpc.inits.length; i++) {
+                    var init = settings.binrpc.inits[i];
+                    if (lastEvents[init.id] < reinit) {
+
+                        if (settings.binrpc.checkEvents.testTrigger[init.id]) {
+                            logger.warn("binrpc    --> re-init "+init.id);
+
+                            homematic.request(init.port, "init", ["xmlrpc_bin://"+settings.binrpc.listenIp+":"+settings.binrpc.listenPort,init.id], function(data, name) {
+                                if (data === "") {
+                                    logger.info("binrpc    <-- init on "+name+" successful");
+                                    lastEvents[init.id] = Math.floor((new Date()).getTime() / 1000);
+                                } else {
+                                    logger.error("binrpc    <-- init on "+name+" failure");
+                                }
+                            });
+
+                        } else {
+                            logger.warn("binrpc        checkEvent.trigger undefined for "+init.id);
+                        }
+
+                    } else if (lastEvents[init.id] < check) {
+                        logger.verbose("binrpc        checking init "+init.id);
+                        if (settings.binrpc.checkEvents.testTrigger[init.id]) {
+                            var id = regaIndex.Name[settings.binrpc.checkEvents.testTrigger[init.id]][0];
+                            regahss.script("dom.GetObject("+id+").State(true);");
+                        } else {
+                            logger.warn("binrpc        checkEvent.trigger undefined for "+init.id);
+                        }
+                    } else {
+                        logger.verbose("binrpc        init "+init.id+" ok - last event "+(now-lastEvents[init.id])+"s ago");
+                    }
+                }
+            }
+
+            updateStatus();
+
+        }, (settings.binrpc.checkEvents.interval * 1000));
+    }
+
+    if (regahss) {
+        regahss = null;
+    } else {
+        if (settings.stats) {
+            setInterval(function () {
+                socket.emit ("setStats", stats);
+            }, settings.statsIntervalMinutes * 60000);
+        }
+    }
+
+    regahss = new rega({
+        ccuIp: settings.ccuIp,
+        ready: function(err) {
+            if (err == "ReGaHSS down") {
+                logger.error("rega          ReGaHSS down");
+                ccuReachable = true;
+                ccuRegaUp    = false;
+                socket.emit ("setStatus", {ccuReachable: ccuReachable, ccuRegaUp: ccuRegaUp});
+                tryReconnect();
+            } else if (err == "CCU unreachable") {
+                logger.error("adapter CCU   CCU unreachable");
+                ccuReachable = false;
+                ccuRegaUp    = false;
+                socket.emit ("setStatus", {ccuReachable: ccuReachable, ccuRegaUp: ccuRegaUp});
+                tryReconnect();
+            } else {
+                logger.info("rega          ReGaHSS up");
+                ccuReachable = true;
+                ccuRegaUp    = true;
+
+                regahss.loadStringTable(settings.stringTableLanguage, function (data) {
+                    stringTable = data;
+                    regahss.checkTime(loadRegaData);
+                });
+
+                socket.emit ("setStatus", {ccuReachable: ccuReachable, ccuRegaUp:ccuRegaUp});
+            }
+        }
+    });
+
+}
+
+function updateStatus () {
+    socket.emit("updateStatus");
+}
 
 function tryReconnect() {
     if (regahss && regahss.options && regahss.options.ccuIp) {
@@ -331,7 +339,7 @@ function tryReconnect() {
 
 function reconnect() {
 
-    regahss.loadStringTable(ccuSettings.stringTableLanguage, function (data) {
+    regahss.loadStringTable(settings.stringTableLanguage, function (data) {
         socket.emit ("setStringtable", data);
     });
 
@@ -391,7 +399,7 @@ function pollRega() {
         if (newDatapoints.length > 0) {
             socket.emit ("setPointValues", newDatapoints);
         }
-        pollTimer = setTimeout(pollRega, ccuSettings.regahss.pollDataInterval);
+        pollTimer = setTimeout(pollRega, settings.regahss.pollDataInterval);
     });
 }
 
@@ -414,7 +422,6 @@ function pollServiceMsgs() {
         socket.emit ("setPointValues", newDatapoints);
     });
 }
-
 
 function getImage(type) {
     if (this.images == null) {
@@ -557,59 +564,96 @@ function updateDataTree () {
             regaObjects[id].TypeName == "FAVORITE") {
             continue;
         }
+        var idNum = parseInt(id);
+        if (idNum == 14399) {
+            var g = 0;
+        }
 
-        dataTree [id] = {};
-        dataTree [id].name = regaObjects[id].Name;
+        dataTree [idNum] = {};
+        dataTree [idNum].name = regaObjects[id].Name;
         // Alarm variable or variable
         if (regaObjects[id].TypeName == "VARDP") {
-            dataTree [id].type        = c.cObjTypePoint;
-            dataTree [id].description = regaObjects[id].DPInfo;
-            dataTree [id].specType    = "Variable";
+            dataTree [idNum].type        = c.cObjTypePoint;
+            dataTree [idNum].description = regaObjects[id].DPInfo;
+            dataTree [idNum].specType    = "Variable";
         }
         else
         if (regaObjects[id].TypeName == "DEVICE") {
-            dataTree [id].type        = c.cObjTypeDevice;
-            dataTree [id].specType    = regaObjects[id].HssType;
-            dataTree [id].image       = getImage (regaObjects[id].HssType);
-            dataTree [id].address     = regaObjects[id].Address;
-            dataTree [id].objects     = regaObjects[id].Channels;
+            dataTree [idNum].type        = c.cObjTypeDevice;
+            dataTree [idNum].specType    = regaObjects[id].HssType;
+            dataTree [idNum].image       = getImage (regaObjects[id].HssType);
+            dataTree [idNum].address     = regaObjects[id].Address;
+            dataTree [idNum].objects     = regaObjects[id].Channels;
         }
         else
         if (regaObjects[id].TypeName == "CHANNEL") {
-            dataTree [id].parent      = regaObjects[id].Parent;
-            dataTree [id].type        = c.cObjTypeChannel;
-            dataTree [id].specType    = regaObjects[id].HssType;
-            dataTree [id].address     = regaObjects[id].Address;
-            dataTree [id].objects     = [];
+            dataTree [idNum].parent      = regaObjects[id].Parent;
+            dataTree [idNum].type        = c.cObjTypeChannel;
+            dataTree [idNum].specType    = regaObjects[id].HssType;
+            dataTree [idNum].address     = regaObjects[id].Address;
+            dataTree [idNum].objects     = [];
             for (var i in regaObjects[id].DPs) {
-                dataTree [id].objects.push(regaObjects[id].DPs[i]);
+                dataTree [idNum].objects.push(regaObjects[id].DPs[i]);
             }
             for (var i in regaObjects[id].ALDPs) {
-                dataTree [id].objects.push(regaObjects[id].ALDPs[i]);
+                dataTree [idNum].objects.push(regaObjects[id].ALDPs[i]);
             }
         }
         else
         if (regaObjects[id].TypeName == "HSSDP") {
-            dataTree [id].parent      = regaObjects[id].Parent;
-            dataTree [id].type        = c.cObjTypePoint;
-            dataTree [id].specType    = "Datapoint";
-            dataTree [id].address     = regaObjects[id].Address;
+            dataTree [idNum].parent      = regaObjects[id].Parent;
+            dataTree [idNum].type        = c.cObjTypePoint;
+            dataTree [idNum].specType    = "Datapoint";
+            dataTree [idNum].address     = regaObjects[id].Address;
         }
         else
         if (regaObjects[id].TypeName == "ALARMDP") {
-            dataTree [id].parent      = regaObjects[id].Parent;
-            dataTree [id].type        = c.cObjTypePoint;
-            dataTree [id].specType    = "Alarms";
-            dataTree [id].address     = regaObjects[id].Address;
+            dataTree [idNum].parent      = regaObjects[id].Parent;
+            dataTree [idNum].type        = c.cObjTypePoint;
+            dataTree [idNum].specType    = "Alarms";
+            dataTree [idNum].address     = regaObjects[id].Address;
         }
         else
         if (regaObjects[id].TypeName == "PROGRAM") {
-            dataTree [id].type        = c.cObjTypePoint;
-            dataTree [id].specType    = "Programm";
-            dataTree [id].description = regaObjects[id].DPInfo;
+            dataTree [idNum].type        = c.cObjTypePoint;
+            dataTree [idNum].specType    = "Programm";
+            dataTree [idNum].description = regaObjects[id].DPInfo;
         }
         else {
             logger.warn("Unknown type of CCU object " + regaObjects[id].TypeName);
+        }
+
+        // Find out rooms, functions, favorites
+        // ENUM_FUNCTIONS, FAVORITE, ENUM_ROOMS
+        if (regaIndex['ENUM_FUNCTIONS']) {
+            for (var t = 0, len = regaIndex['ENUM_FUNCTIONS'].length; t < len; t++) {
+                if (regaObjects[regaIndex['ENUM_FUNCTIONS'][t]].Channels.indexOf (idNum) != -1) {
+                    if (!dataTree [idNum].role) {
+                        dataTree [idNum].role = [];
+                    }
+                    dataTree [idNum].role.push(regaObjects[regaIndex['ENUM_FUNCTIONS'][t]].Name);
+                }
+            }
+        }
+        if (regaIndex['FAVORITE']) {
+            for (var t = 0, len = regaIndex['FAVORITE'].length; t < len; t++) {
+                if (regaObjects[regaIndex['FAVORITE'][t]].Channels.indexOf (idNum) != -1) {
+                    if (!dataTree [idNum].favorite) {
+                        dataTree [idNum].favorite = [];
+                    }
+                    dataTree [idNum].favorite.push(regaObjects[regaIndex['FAVORITE'][t]].Name);
+                }
+            }
+        }
+        if (regaIndex['ENUM_ROOMS']) {
+            for (var t = 0, len = regaIndex['ENUM_ROOMS'].length; t < len; t++) {
+                if (regaObjects[regaIndex['ENUM_ROOMS'][t]].Channels.indexOf (idNum) != -1) {
+                    if (!dataTree[idNum].location) {
+                        dataTree [idNum].location = [];
+                    }
+                    dataTree[idNum].location.push(regaObjects[regaIndex['ENUM_ROOMS'][t]].Name);
+                }
+            }
         }
     }
 
@@ -623,7 +667,7 @@ function updateDataPoints () {
 function loadRegaData(index, err, rebuild, triggerReload) {
     if (!index) { index = 0; }
 
-    var type = ccuSettings.regahss.metaScripts[index];
+    var type = settings.regahss.metaScripts[index];
     logger.info("rega          fetching "+type);
     regahss.runScriptFile(type, function (_data) {
         var data = JSON.parse(_data);
@@ -708,11 +752,11 @@ function loadRegaData(index, err, rebuild, triggerReload) {
         }
 
         index += 1;
-        if (index < ccuSettings.regahss.metaScripts.length) {
+        if (index < settings.regahss.metaScripts.length) {
             loadRegaData(index, null, rebuild);
         } else {
 
-            // Send new data to Homander
+            // Send new data to ioBroker
             updateDataTree   ();
             updateDataPoints ();
 
@@ -724,7 +768,7 @@ function loadRegaData(index, err, rebuild, triggerReload) {
                 socket.emit("reloadDataReady", process.env.adapterId);
             } else {
                 logger.info("rega          data succesfully loaded");
-                if (ccuSettings.regahss.pollData) {
+                if (settings.regahss.pollData) {
                     pollRega();
                 }
                 initRpc();
@@ -738,29 +782,23 @@ function loadRegaData(index, err, rebuild, triggerReload) {
 
 }
 
-if (settings.stats) {
-    setInterval(function () {
-        socket.emit ("setStats", stats);
-    }, settings.statsIntervalMinutes * 60000);
-}
-
 function initRpc() {
 
-    for (var i = 0; i < ccuSettings.binrpc.inits.length; i++) {
-        lastEvents[ccuSettings.binrpc.inits[i].id] = Math.floor((new Date()).getTime() / 1000);
+    for (var i = 0; i < settings.binrpc.inits.length; i++) {
+        lastEvents[settings.binrpc.inits[i].id] = Math.floor((new Date()).getTime() / 1000);
     }
 
     if (!homematic) {
-        if (!ccuSettings.binrpc.listenIp || !ccuSettings.binrpc.listenPort) {
-            logger.error ('binrp         Invalid settings for CCU adapter: IP - "'+ccuSettings.binrpc.listenIp+'":"'+ccuSettings.binrpc.listenPort+'"');
+        if (!settings.binrpc.listenIp || !settings.binrpc.listenPort) {
+            logger.error ('binrp         Invalid settings for CCU adapter: IP - "'+settings.binrpc.listenIp+'":"'+settings.binrpc.listenPort+'"');
             return;
         }
 
         homematic = new binrpc({
-            ccuIp:      ccuSettings.ccuIp,
-            listenIp:   ccuSettings.binrpc.listenIp,
-            listenPort: ccuSettings.binrpc.listenPort,
-            inits:      ccuSettings.binrpc.inits,
+            ccuIp:      settings.ccuIp,
+            listenIp:   settings.binrpc.listenIp,
+            listenPort: settings.binrpc.listenPort,
+            inits:      settings.binrpc.inits,
             methods: {
                 event: function (obj) {
 
@@ -791,7 +829,7 @@ function initRpc() {
                             break;
                     }
 
-                    if (ccuSettings.regahss.pollDataTriggerEnabled && bidcos == ccuSettings.regahss.pollDataTrigger) {
+                    if (settings.regahss.pollDataTriggerEnabled && bidcos == settings.regahss.pollDataTrigger) {
                         clearTimeout(pollTimer);
                         pollRega();
                     }

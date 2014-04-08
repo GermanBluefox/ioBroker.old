@@ -2,7 +2,7 @@ var scheduler = require('node-schedule'),
     fs = require("fs");
 
 var logger = {
-    logfile: __dirname + "/log/homander.log",
+    logfile: __dirname + "/log/iobroker.log",
     level: 2,
     timestamp: true,
     colors: {

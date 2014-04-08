@@ -1,5 +1,5 @@
 /**
- *      Homander Ping Adapter
+ *      ioBroker Ping Adapter
  *      11'2013-2014 Bluefox
  *
  *      Version 0.3
@@ -30,7 +30,7 @@ if (process.env.serverPort) {
 var settings = null;
 
 socket.on('connect', function () {
-    logger.info("adapter ping  connected to Homander");
+    logger.info("adapter ping  connected to ioBroker");
     this.emit ("getAdapterSettings", process.env.adapterId, function (data) {
         settings = data;
         pingInit ();
@@ -44,7 +44,7 @@ socket.on('getAdapterId', function (callback) {
 });
 
 socket.on('disconnect', function () {
-    logger.info("adapter ping  disconnected from Homander");
+    logger.info("adapter ping  disconnected from ioBroker");
 });
 
 function stop() {

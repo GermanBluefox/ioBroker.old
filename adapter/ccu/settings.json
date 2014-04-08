@@ -3,7 +3,7 @@
 	"description": "One Homematic CCU",
 	"isUnique" : false,
     "image": "homematic.png",
-    "desiredId": 3,
+    "desiredId": 10,
     "settings": {
         "ccuIp": "",
 

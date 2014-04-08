@@ -1,7 +1,7 @@
 {
     "name": "ping",
 	"description": "Ping different Ip devices and deliver status",
-    "desiredId": 4,
+    "desiredId": 12,
     "settings": {
         "pollingInterval": 60000,
         "IPs": {

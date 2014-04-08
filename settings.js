@@ -7,18 +7,18 @@ settings.adapters = [];
 try {
     var settingsJson = fs.readFileSync(__dirname+"/datastore/settings.json");
     settings = JSON.parse(settingsJson.toString());
-    logger.verbose("Homander      settings found");
+    logger.verbose("ioBroker      settings found");
     if (!settings.uid) {
-        logger.verbose("Homander      creating uid");
+        logger.verbose("ioBroker      creating uid");
         settings.uid = Math.floor((Math.random()*4294967296)).toString(16)+Math.floor((Math.random()*4294967296)).toString(16)+Math.floor((Math.random()*4294967296)).toString(16)+Math.floor((Math.random()*4294967296)).toString(16);
         fs.writeFileSync(__dirname+"/datastore/settings.json", JSON.stringify(settings));
     }
 } catch (e) {
-    logger.info("Homander      creating datastore/settings.json");
+    logger.info("ioBroker      creating datastore/settings.json");
     var settingsJson = fs.readFileSync(__dirname+"/settings-dist.json");
     settings = JSON.parse(settingsJson.toString());
     settings.unconfigured = true;
-    logger.verbose("Homander      creating uid");
+    logger.verbose("ioBroker      creating uid");
     settings.uid = Math.floor((Math.random()*4294967296)).toString(16)+Math.floor((Math.random()*4294967296)).toString(16)+Math.floor((Math.random()*4294967296)).toString(16)+Math.floor((Math.random()*4294967296)).toString(16);
     fs.writeFileSync(__dirname+"/datastore/settings.json", JSON.stringify(settings));
 }
@@ -48,16 +48,16 @@ for (var i = 0; i < adapters.length; i++) {
     try {
         settingsJson = fs.readFileSync(__dirname+"/datastore/adapter-"+adapters[i]+".json");
         adapterSettings = JSON.parse(settingsJson.toString());
-        logger.verbose("Homander      settings.json found for "+adapters[i]);
+        logger.verbose("ioBroker      settings.json found for "+adapters[i]);
 
     } catch (e) {
         try {
             settingsJson = fs.readFileSync(__dirname+"/adapter/"+adapters[i]+"/settings.json");
             var adapterSettings = JSON.parse(settingsJson.toString());
             fs.writeFileSync(__dirname+"/datastore/adapter-"+adapters[i]+".json", JSON.stringify(adapterSettings));
-            logger.info("Homander      creating datastore/adapter-"+adapters[i]+".json");
+            logger.info("ioBroker      creating datastore/adapter-"+adapters[i]+".json");
         } catch (ee) {
-            logger.error("Homander      no settings.json found for "+adapters[i]);
+            logger.error("ioBroker      no settings.json found for "+adapters[i]);
         }
     }
     settings.adapters[adapters[i]] = adapterSettings;

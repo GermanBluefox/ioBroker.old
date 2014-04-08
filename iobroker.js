@@ -1,6 +1,6 @@
 var daemon = require("daemonize2").setup({
     main: "main.js",
-    name: "Homander",
+    name: "ioBroker",
     pidfile: "main.pid"
 });
 

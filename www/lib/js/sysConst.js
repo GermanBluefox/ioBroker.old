@@ -7,13 +7,13 @@ var cObjTypePoint   = 3;
 // Constants reserved adapters
 var cSystem          = 1;
 var cScript          = 2;
-var cUserAdapter     = 3;
+var cWebServer       = 3
+var cUserAdapter     = 10;
 var cSettingsAdapter = 0xFFE;
 
 // Variables in cSystem
 var cSystemLanguage    = 1;
 var cSystemReady       = 2;
-var cSystemWebServerUp = 3;
 
 var cAdapterMask  = 0xFFF;
 var cAdapterShift = 20; // Bits
@@ -32,11 +32,11 @@ if (typeof module !== "undefined" && typeof module.exports != "undefined") {
 
         cSystem            :cSystem              ,
         cScript            :cScript              ,
+        cWebServer         :cWebServer           ,
         cUserAdapter       :cUserAdapter         ,
 
         cSystemLanguage    :cSystemLanguage      ,
         cSystemReady       :cSystemReady         ,
-        cSystemWebServerUp :cSystemWebServerUp   ,
 
         cAdapterMask       :cAdapterMask         ,
         cAdapterShift      :cAdapterShift        ,

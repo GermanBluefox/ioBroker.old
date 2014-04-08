@@ -27,7 +27,7 @@ if (process.env.serverPort) {
 }
 
 socket.on('connect', function () {
-    logger.info("adapter pushover  connected to Homander");
+    logger.info("adapter pushover  connected to ioBroker");
     this.emit ("getAdapterSettings", process.env.adapterId, function (data) {
         settings = data;
 
@@ -54,7 +54,7 @@ socket.on('event', function (id, val) {
 });
 
 socket.on('disconnect', function () {
-    logger.info("adapter pushover  disconnected from Homander");
+    logger.info("adapter pushover  disconnected from ioBroker");
 });
 
 function stop() {

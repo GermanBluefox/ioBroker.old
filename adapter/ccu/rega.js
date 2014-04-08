@@ -1,9 +1,9 @@
 /**
- *      Homander - HOMe cOMmANDER for Node.js
+ *      ioBroker - HOMe cOMmANDER for Node.js
  *
  *      Version 0.6
  *
- *      Copyright (c) 2013-2014 http://homander.com
+ *      Copyright (c) 2013-2014 http://iobroker.com
  *
  *      CC BY-NC 3.0
  *
@@ -56,7 +56,7 @@ rega.prototype = {
                 var ccuTime = parseInt(data, 10);
                 var localTime = Math.round(new Date().getTime() / 1000);
                 var diff = localTime - ccuTime
-                logger.info("Homander      time difference local-ccu " + diff.toString() + "s");
+                logger.info("ioBroker      time difference local-ccu " + diff.toString() + "s");
             }
             callback(0, err);
         });
@@ -79,7 +79,7 @@ rega.prototype = {
                     eval(jscode);
 
                     logger.verbose(langJSON);
-                    logger.info("Homander      loaded translate.lang.js");
+                    logger.info("ioBroker      loaded translate.lang.js");
 
                     request.get({ url: 'http://' + that.options.ccuIp + '/webui/js/lang/'+lang+'/translate.lang.stringtable.js', encoding: null }, function(err, res, body) {
                         if (res.statusCode == 200) {
@@ -93,7 +93,7 @@ rega.prototype = {
                             }
 
                             logger.verbose(langJSON);
-                            logger.info("Homander      loaded translate.lang.stringtable.js");
+                            logger.info("ioBroker      loaded translate.lang.stringtable.js");
                         } else {
                             callback(langJSON);
                             return;
@@ -113,7 +113,7 @@ rega.prototype = {
                                 }
 
                                 logger.verbose(langJSON);
-                                logger.info("Homander      loaded translate.lang.extensionV.js");
+                                logger.info("ioBroker      loaded translate.lang.extensionV.js");
 
                             }
                             callback(langJSON);
@@ -121,7 +121,7 @@ rega.prototype = {
                     });
 
                 } catch (e) {
-                    logger.error("Homander      loadTranslation "+e);
+                    logger.error("ioBroker      loadTranslation "+e);
                     callback(null);
                 }
 
@@ -176,7 +176,7 @@ rega.prototype = {
 
                     }
                 }
-                logger.info("Homander      stringtable loaded");
+                logger.info("ioBroker      stringtable loaded");
                 callback(lang);
             });
         });

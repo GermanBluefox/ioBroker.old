@@ -6,13 +6,13 @@ var request =   require("request"),
 
 ncp.limit = 16;
 
-logger.info("update-Homander started");
+logger.info("update-ioBroker started");
 
-var url = "https://github.com/hobbyquaker/Homander/archive/master.zip",
-    tmpDir = "Homander-master",
+var url = "https://github.com/hobbyquaker/ioBroker/archive/master.zip",
+    tmpDir = "ioBroker-master",
     tmpFile = __dirname+"/tmp/master.zip";
 
-logger.info("update-Homander download and unzip "+url);
+logger.info("update-ioBroker download and unzip "+url);
 
 // Download and Unzip
 // reading archives
@@ -21,11 +21,11 @@ request(url).pipe(fs.createWriteStream(tmpFile)).on("close", function () {
     var zip = new AdmZip(tmpFile);
     zip.extractAllTo(__dirname+"/tmp", true);
 
-    logger.info("update-Homander unzip done");
+    logger.info("update-ioBroker unzip done");
     var source =        __dirname+"/tmp/"+tmpDir,
         destination =   __dirname;
 
-    logger.info("update-Homander copying "+source+" to "+destination);
+    logger.info("update-ioBroker copying "+source+" to "+destination);
 
     ncp(source, destination, function (err) {
         if (err) {
@@ -35,9 +35,9 @@ request(url).pipe(fs.createWriteStream(tmpFile)).on("close", function () {
 
         setTimeout(function () {
             // Ordner im tmp Verzeichnis lÃ¶schen
-            logger.info('update-Homander delete tmp folder '+__dirname+"/tmp/"+tmpDir);
+            logger.info('update-ioBroker delete tmp folder '+__dirname+"/tmp/"+tmpDir);
             deleteFolderRecursive(__dirname+"/tmp/"+tmpDir);
-            logger.info('update-Homander done');
+            logger.info('update-ioBroker done');
             process.exit(0);
         }, 2000);
 

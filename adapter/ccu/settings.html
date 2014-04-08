@@ -6,7 +6,7 @@
         <td colspan="3" class="translate">IP address of CCU or CCU2 from Homematic</td>
     </tr>
     <tr>
-        <td class="translate">Homander IP-Address:</td>
+        <td class="translate">ioBroker IP-Address:</td>
         <td style="width: 100px">
             <select id="binrpc_listenIp">
                 <option value="" class="translate">Invalid</option>
@@ -19,7 +19,7 @@
     <h3 class='translate'>HomeMatic RPC</h3>
     <table class="settings-table">
         <tr>
-            <td class="settings-td1 translate">Homander RPC Server </td>
+            <td class="settings-td1 translate">ioBroker RPC Server </td>
             <td class="settings-td2">&nbsp;</td>
             <td class="settings-td3">&nbsp;</td>
             <td class="settings-td4 translate">Port</td>
@@ -104,9 +104,9 @@
         "Enabled:":           {"en": "Enabled:",             "de": "Aktiviert:",          "ru": "Активно:"},
         "Enabled"           : {"en": "Enabled",              "de": "Aktiviert",           "ru": "Включено"},
         "CCU IP-Address"    : {"en": "CCU IP-Address",       "de": "CCU IP Adresse",      "ru": "IP Адрес CCU"},
-        "Homander IP-Address" : {"en": "Homander IP-Address",    "de": "Homander IP Adresse",   "ru": "IP Адрес Homander"},
+        "ioBroker IP-Address" : {"en": "ioBroker IP-Address",    "de": "ioBroker IP Adresse",   "ru": "IP Адрес ioBroker"},
         "HomeMatic RPC"     : {"en": "HomeMatic RPC",        "de": "HomeMatic RPC",       "ru": "HomeMatic RPC"},
-        "Homander RPC Server ": {"en": "Homander RPC Server",    "de": "Homander RPC Server",   "ru": "Homander RPC Server"},
+        "ioBroker RPC Server ": {"en": "ioBroker RPC Server",    "de": "ioBroker RPC Server",   "ru": "ioBroker RPC Server"},
         "rfd Init"          : {"en": "rfd Init",             "de": "rfd Init",            "ru": "rfd Init"},
         "hs485d Init"       : {"en": "hs485d Init",          "de": "hs485d Init",         "ru": "hs485d Init"},
         "CUxD Init"         : {"en": "CUxD Init",            "de": "CUxD Init",           "ru": "CUxD Init"},
@@ -121,7 +121,6 @@
         "Invalid"           : {"en": "Invalid",              "de": "Invalid",             "ru": "не существует"}
     };
 
-    var socket = io.connect( $(location).attr('protocol') + '//' +  $(location).attr('host') + "?key="+socketSession);
     socket.emit('getIpAddresses', function (ipArr) {
         if (ipArr) {
             var select = $('#binrpc_listenIp');
