@@ -241,7 +241,7 @@ function insertSorted (arr, element) {
 // Convert value to formatted object {val, ts(timestamp), ack(acknowledged), ls (last changed)}
 function getObjValue (value) {
     var objVal = {val: null, ts: null, ack: true, lc: null};
-    if (typeof value == "object" && value !== null) {
+    if (typeof value == "object" && value !== null && value.val) {
         if (value.val !== undefined) {
             objVal.val = value.val;
         }
@@ -259,7 +259,7 @@ function getObjValue (value) {
         }
     }
     else // [value, timestamp, ack, lastchange]
-    if (typeof value == "array") {
+    if (typeof value == 'object') {
         if (value.length > 0) {
             objVal.val = value[0];
             if (value.length > 1) {
@@ -301,42 +301,42 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
     objID = parseInt (objID);
 
     if (adapterID === undefined || adapterID > c.cAdapterMask) {
-        logger.error("addObject "+adapterID+ "." + objID +" " + JSON.stringify(obj) + " has invalid format: adapterID is invalid");
+        logger.error('addObject '+adapterID+ '.' + objID +' ' + JSON.stringify(obj) + ' has invalid format: adapterID is invalid');
         return null;
     }
     if (objID === undefined || objID > c.cObjectsMask) {
-        logger.error("addObject "+adapterID+ "." + objID +" " + JSON.stringify(obj) + " has invalid format: objID is invalid");
+        logger.error('addObject '+adapterID+ '.' + objID +' ' + JSON.stringify(obj) + ' has invalid format: objID is invalid');
         return null;
     }
     var indexObject = [adapterID, objID, adapterID << c.cAdapterShift | objID];
 
-    if (typeof obj != "object") {
-        logger.error("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has invalid format: not an object");
+    if (typeof obj != 'object') {
+        logger.error('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has invalid format: not an object');
         return null;
     }
     if (obj.name === undefined) {
-        logger.error("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has invalid format: no name is set");
+        logger.error('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has invalid format: no name is set');
         return null;
     }
     if (obj.type === undefined) {
-        logger.error("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has invalid format: no type is set");
+        logger.error('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has invalid format: no type is set');
         return null;
     }
-    if (typeof obj.type == "string") {
+    if (typeof obj.type == 'string') {
         obj.type = obj.type.toLowerCase();
         // Try to convert type
         switch (obj.type) {
-            case "device":
+            case 'device':
                 obj.type = c.cObjTypeDevice;
                 break;
-            case "point":
+            case 'point':
                 obj.type = c.cObjTypePoint;
                 break;
-            case "channel":
+            case 'channel':
                 obj.type = c.cObjTypeChannel;
                 break;
             default:
-                logger.error("addObject "+JSON.stringify(obj)+" has invalid format: invalid type");
+                logger.error('addObject '+JSON.stringify(obj)+' has invalid format: invalid type');
                 return null;
         }
     }
@@ -349,7 +349,7 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
     // Convert children array from string to number
     if (obj.children) {
         for (var t = 0, len = obj.children.length; t < len; t++) {
-            if (typeof obj.children[t] == "string") {
+            if (typeof obj.children[t] == 'string') {
                 obj.children[t] = parseInt (obj.children[t]);
             }
         }
@@ -360,11 +360,11 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
         obj.location = [obj.location];
     }
 
-    if (obj.favorite && typeof obj.favorite == "string") {
+    if (obj.favorite && typeof obj.favorite == 'string') {
         obj.favorite = [obj.favorite];
     }
 
-    if (obj.role && typeof obj.role == "string") {
+    if (obj.role && typeof obj.role == 'string') {
         obj.role = [obj.role];
     }
 
@@ -382,7 +382,7 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
             }
         }
         else {
-            logger.warn("addObject "+adapterID+ "." + objID +" " + JSON.stringify(obj) + " add object with non- existing parent");
+            logger.warn('addObject '+adapterID+ '.' + objID +' ' + JSON.stringify(obj) + ' add object with non- existing parent');
         }
     }
 
@@ -413,18 +413,18 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
     }
 
     if (metaIndex.name[adapterID][obj.name] !== undefined && metaIndex.name[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
-        logger.warn("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has not an unique name");
+        logger.warn('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has not an unique name');
     }
     else {
         metaIndex.name[adapterID][obj.name] = indexObject;
     }
     // Location
     if (obj.location) {
-        if (metaIndex.location[obj.location] === undefined) {
-            metaIndex.location[obj.location] = [];
-        }
-        for (var i = 0, len = obj.location; i < len; i++) {
+        for (var i = 0, len = obj.location.length; i < len; i++) {
             if (obj.location[i]) {
+                if (metaIndex.location[obj.location[i]] === undefined) {
+                    metaIndex.location[obj.location[i]] = [];
+                }
                 insertSorted (metaIndex.location[obj.location[i]], indexObject);
 
             }
@@ -432,23 +432,22 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
     }
     // favorite
     if (obj.favorite) {
-        if (metaIndex.favorite[obj.favorite] === undefined) {
-            metaIndex.favorite[obj.favorite] = [];
-        }
-        for (var i = 0, len = obj.favorite; i < len; i++) {
+        for (var i = 0, len = obj.favorite.length; i < len; i++) {
             if (obj.favorite[i]) {
+                if (metaIndex.favorite[obj.favorite[i]] === undefined) {
+                    metaIndex.favorite[obj.favorite[i]] = [];
+                }
                 insertSorted (metaIndex.favorite[obj.favorite[i]], indexObject);
-
             }
         }
     }
     // role
     if (obj.role) {
-        if (metaIndex.role[obj.role] === undefined) {
-            metaIndex.role[obj.role] = [];
-        }
-        for (var i = 0, len = obj.role; i < len; i++) {
+        for (var i = 0, len = obj.role.length; i < len; i++) {
             if (obj.role[i]) {
+                if (metaIndex.role[obj.role[i]] === undefined) {
+                    metaIndex.role[obj.role[i]] = [];
+                }
                 insertSorted (metaIndex.role[obj.role[i]], indexObject);
             }
         }
@@ -465,14 +464,14 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
         if (!metaIndex.address[adapterID]) {
             metaIndex.address[adapterID] = {};
         }
-        if (metaIndex.address[adapterID][obj.name] !== undefined && metaIndex.address[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
-            logger.warn("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " has not an unique address");
+        if (metaIndex.address[adapterID][obj.address] !== undefined && metaIndex.address[adapterID][obj.address][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
+            logger.warn('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has not an unique address');
         }
         else {
-            metaIndex.address[adapterID][obj.name] = indexObject;
+            metaIndex.address[adapterID][obj.address] = indexObject;
         }
     }
-    logger.verbose("addObject "+adapterID+ "." + objID +" "+ JSON.stringify(obj) + " inserted succsessfully");
+    logger.verbose('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' inserted succsessfully');
 
     if (infromAdapters) {
         // Inform GUI and adapters about new object
@@ -524,13 +523,13 @@ function sendNewObject (id, value) {
 
 // inform adapters and GUI about many new objects for one adapter. Adapter must read information for this adapter anew.
 function sendNewObjects (adapterId) {
-    logger.verbose("sendNewObjects: new data points in adapter " + settings.adapters[adapterId].name);
     // go through all sockets
     for (var i = 0, len = socketList.length; i < len; i++)  {
         if (socketList[i]) {
             // Send information only to multiData adapters or GUI
             var adapterId = socketList[i].adapterId;
             if (!adapterId || metaIndex.adapterInfo[adapterId].multiData) {
+                logger.verbose("sendNewObjects: new data points of adapter " + settings.adapters[adapterId].name + ' to '+ ( settings.adapters[socketList[i].adapterId]) ? settings.adapters[socketList[i].adapterId].name :  socketList[i].id);
                 socketList[i].emit('newObjects', adapterId);
             }
         }
@@ -594,7 +593,7 @@ function addObjects (adapterId, isMerge, newObjects, newValues) {
 function getId (id, adapterId) {
     // Convert id if not array
     var typeId = typeof id;
-    if (typeId != "array") {
+    if (typeId != "object") {
         if (typeId == "string") {
             var p = id.indexOf(".");
             if (p == -1) {
@@ -1506,8 +1505,8 @@ function initSocketIO(_io) {
                 if (callback) callback (false);
             }
             else {
-                if (typeof objId != "array") {
-                    log.warn("addObject : objId must be defined as array");
+                if (typeof objId != 'object') {
+                    log.warn('addObject : objId must be defined as array');
                     if (callback) {
                         callback (false);
                     }

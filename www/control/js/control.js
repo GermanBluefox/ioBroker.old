@@ -1,3 +1,5 @@
+"use strict";
+
 var currentAdapterSettings;
 var mainSettings  = null;
 var connLink      = location.protocol + '//' +  location.hostname + ':' + (parseInt(location.port)+1) + '/?key='+((typeof socketSession != 'undefined') ? socketSession : 'nokey');
@@ -61,10 +63,12 @@ function translateWordBack(text, lang, dictionary) {
         return text;
     }
     for (var word in dictionary) {
-        if (dictionary[word] === null)
+        if (dictionary[word] === null){
             continue;
-        if (dictionary[word][lang] == text)
+        }
+        if (dictionary[word][lang] == text) {
             return word;
+        }
     }
 
     console.log("back: " + text);
@@ -143,8 +147,8 @@ function translateAll(lang, dictionary) {
 
 $(document).ready(function () {
     // Functions
-    {
-        function updateAddonHandler(id) {
+    var control = {
+        updateAddonHandler: function (id) {
             $("input#"+id).click(function () {
 
                 var $this = $(this);
@@ -164,7 +168,7 @@ $(document).ready(function () {
                         var availVersion = obj.version;
                         availVersion = availVersion.replace(/beta/,".");
 
-                        var updateAvailable = compareVersion(instVersion, availVersion);
+                        var updateAvailable = control.compareVersion(instVersion, availVersion);
 
                         if (updateAvailable) {
                             $("input.updateCheck[data-update-name='"+obj.name+"']").parent().prepend("<input type='button' id='update_"+obj.ident+"' class='addon-update translateV' data-lang='"+((mainSettings && mainSettings.language) ? mainSettings.language : 'en')+"' value='"+translateWord("update")+"'/>&nbsp;");
@@ -173,7 +177,7 @@ $(document).ready(function () {
                                 var that = this;
                                 socket.emit("updateAddon", obj.urlDownload, obj.dirname, function (err) {
                                     if (err) {
-                                        showMessage(err);
+                                        control.showMessage(err);
                                     } else {
                                         $(that).remove();
                                     }
@@ -194,7 +198,7 @@ $(document).ready(function () {
                             var availVersion = obj.version;
                             availVersion = availVersion.replace(/beta/,".");
 
-                            var updateAvailable = compareVersion(instVersion, availVersion);
+                            var updateAvailable = control.compareVersion(instVersion, availVersion);
 
                             if (updateAvailable) {
                                 $("input.updateCheck[data-update-name='"+obj.name+"']").parent().prepend("<input type='button' id='update_"+obj.ident+"' class='addon-update' data-lang='"+((mainSettings && mainSettings.language) ? mainSettings.language : 'en')+"' value='"+translateWord("update")+"'/>&nbsp;");
@@ -203,7 +207,7 @@ $(document).ready(function () {
                                     var that = this;
                                     socket.emit("updateAddon", obj.urlDownload, obj.dirname, function (err) {
                                         if (err) {
-                                            showMessage(err);
+                                            control.showMessage(err);
                                         } else {
                                             $(that).remove();
                                         }
@@ -217,9 +221,9 @@ $(document).ready(function () {
 
                 });
             });
-        }
+        },
 
-        function compareVersion(instVersion, availVersion) {
+        compareVersion: function (instVersion, availVersion) {
             var instVersionArr = instVersion.replace(/beta/,".").split(".");
             var availVersionArr = availVersion.replace(/beta/,".").split(".");
 
@@ -244,16 +248,16 @@ $(document).ready(function () {
                 }
             }
             return updateAvailable;
-        }
+        },
 
-        function getYesNo (isTrue, isWarning) {
+        getYesNo: function (isTrue, isWarning) {
             return isTrue ? "<span class='indicator-true translate' data-lang='"+(mainSettings.language || 'en')+"'>"+translateWord("YES")+"</span>"  : "<span class='" + (!isWarning ? "indicator-false" :"indicator-false-warning")+" translate' data-lang='"+(mainSettings.language || 'en')+"'>"+translateWord("NO")+"</span>";
-        }
-        function getTrueFalse (isTrue) {
+        },
+        getTrueFalse: function (isTrue) {
             return isTrue ? "<span style='color:green'><b data-lang='"+(mainSettings.language || 'en')+"' class='translate'>"+translateWord('TRUE')+"</b></span>" : "<span data-lang='"+(mainSettings.language || 'en')+"' class='translate'>"+translateWord('false')+"</span>";
-        }
+        },
 
-        function oneAdapterLine (adapterId) {
+        oneAdapterLine: function (adapterId) {
             var btnSettings = '<button class="adapter-settings translateB" data-adapter="'+adapterId+
                 '" data-lang="'+((mainSettings && mainSettings.language) ? mainSettings.language : 'en')+'">'+
                 translateWord('configure')+'</button>';
@@ -269,12 +273,12 @@ $(document).ready(function () {
                 name:       mainSettings.adapters[adapterId].name + " - " + availAdapters[mainSettings.adapters[adapterId].type].description,
                 settings:   btnSettings+btnRefresh+btnDelete,
                 confed:     (mainSettings.adapters[adapterId].configured ? "true":"false"),
-                mode:       (mainSettings.adapters[adapterId].mode)  ? getWord(mainSettings.adapters[adapterId].mode):"",
+                mode:       (mainSettings.adapters[adapterId].mode)  ? control.getWord(mainSettings.adapters[adapterId].mode):"",
                 period:     (mainSettings.adapters[adapterId].period ? mainSettings.adapters[adapterId].period:"")
             }
-        }
+        },
 
-        function loadDatapoints() {
+        loadDatapoints: function () {
             $("#loader_message").append(translateWord("loading datapoints") + " ... <br/>");
 
             socket.emit('getPointValues', function(dataValues) {
@@ -305,13 +309,13 @@ $(document).ready(function () {
                 $("#loader").remove();
                 $dataPointGrid.trigger("reloadGrid");
             });
-        }
+        },
 
-        function getWord (word) {
+        getWord: function (word) {
             return "<span class='translate' data-lang='"+((mainSettings && mainSettings.language) ? mainSettings.language : 'en')+"'>"+translateWord(word)+"</span>";
-        }
+        },
 
-        function resizeGrids() {
+        resizeGrids: function () {
             var x = $(window).width();
             var y = $(window).height();
             if (x < 720) { x = 720; }
@@ -324,9 +328,9 @@ $(document).ready(function () {
             $("#adapter_config_container").css("width", x-60);
             $("#adapter_config_container").css("height", y-200);
 
-        }
+        },
 
-        function loadSettings() {
+        loadSettings: function () {
             $("#language [value='"+(mainSettings.language || 'en')+"']").attr("selected", "selected");
 
             $("#language").change(function () {
@@ -382,9 +386,9 @@ $(document).ready(function () {
             } else {
                 $("#useCache").removeAttr("checked");
             }
-        }
+        },
 
-        function saveSettings() {
+        saveSettings: function () {
             mainSettings.language = $("#language").val();
 
             if ($("#stats").is(":checked")) {
@@ -446,17 +450,17 @@ $(document).ready(function () {
             }
 
             socket.emit("setSettings", mainSettings, function () {
-                showMessage ("ioBroker settings saved. Please restart ioBroker");
+                control.showMessage ("ioBroker settings saved. Please restart ioBroker");
             });
-        }
+        },
 
-        function restartAdapter(adapterId) {
+        restartAdapter: function (adapterId) {
             socket.emit("restartAdapter", adapterId, function (res) {
-                showMessage(res);
+                control.showMessage(res);
             });
-        }
+        },
 
-        function deleteAdapter (adapterId) {
+        deleteAdapter: function (adapterId) {
             var btn = {};
             btn[translateWord("Delete")] = function() {
                 var type = mainSettings.adapters[adapterId].type;
@@ -471,7 +475,7 @@ $(document).ready(function () {
                         .text(availAdapters[type].name + " - " + availAdapters[type].description));
                 }
 
-                saveSettings ();
+                control.saveSettings ();
                 $( this ).dialog( "close" );
             };
             btn[translateWord("Cancel")] = function() {
@@ -484,9 +488,9 @@ $(document).ready(function () {
                 modal:     true,
                 buttons:   btn
             });
-        }
+        },
 
-        function editAdapterSettings(adapterId) {
+        editAdapterSettings: function (adapterId) {
             $("#adapter_name").html(mainSettings.adapters[adapterId].name + " - " +
                 availAdapters[mainSettings.adapters[adapterId].type].description);
             $("#adapter_name").attr("data-adapter", adapterId);
@@ -499,7 +503,7 @@ $(document).ready(function () {
              $("#adapter_config_json").html(JSON.stringify(data, null, "    "));
              } catch (e) {
              $("#adapter_config_json").html("{}");
-             showMessage("Error: reading adapter config - invalid JSON");
+             control.showMessage("Error: reading adapter config - invalid JSON");
              }
              currentAdapterSettings = data;
              socket.emit("readRawFile", "adapter/"+adapter+"/settings.html", function (content) {
@@ -512,7 +516,7 @@ $(document).ready(function () {
              } else {
              $("#adapter_config_container").hide();
              $("#adapter_config_json").show();
-             resizeGrids();
+             control.resizeGrids();
              }
              });
              });*/
@@ -527,29 +531,29 @@ $(document).ready(function () {
                 } else {
                     $("#adapter_config_container").hide();
                     $("#adapter_config_json").show();
-                    resizeGrids();
+                    control.resizeGrids();
                 }
                 updateAdapterSettings ();
             });
-        }
+        },
 
-        function saveAdapterSettings() {
+        saveAdapterSettings: function () {
             var adapterId = $("#adapter_name").attr("data-adapter");
             try {
                 var adapterSettings = JSON.parse($("#adapter_config_json").val());
                 mainSettings.adapters[adapterId].configured = true;
                 mainSettings.adapters[adapterId].settings   = adapterSettings;
                 socket.emit("setSettings", mainSettings, function () {
-                    showMessage ("ioBroker settings saved. Please restart ioBroker");
+                    control.showMessage ("ioBroker settings saved. Please restart ioBroker");
                 });
                 return true;
             } catch (e) {
-                showMessage("Error: invalid JSON");
+                control.showMessage("Error: invalid JSON");
                 return false;
             }
-        }
+        },
 
-        function showMessage(text, caption) {
+        showMessage: function (text, caption) {
             if (!text) {
                 $('#dialogModal').dialog("close");
                 return;
@@ -565,6 +569,158 @@ $(document).ready(function () {
                     }
                 }
             });
+        },
+        showIndex: function (obj) {
+            var t = '<div id="metaIndexes">';
+            for (var n in obj) {
+                var count = 0;
+                for (var i in obj[n]){
+                    if (obj[n][i]) {
+                        count++;
+                    }
+                }
+                t  += '<h3 data-meta="metaIndexes_div_'+n+'" id="metaIndexes_h_'+n+'"><table style="margin:10px"><tr><td><span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span></td><td>'+n[0].toUpperCase()+ n.substring(1)+' indexes ('+count+')</td></tr></table></h3>' +
+                    '<div id="metaIndexes_div_'+n+'" style="padding: 10px">\n';
+
+                // Show array[adapters][objects of adapters]
+                if (n == 'name' || n == 'adapterInfo' || n == 'address') {
+                    t += '<table>';
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += '<tr><td><h4 data-meta="metaIndexes_div_'+n+'_'+mainSettings.adapters[i].name+'">' +i + '('+mainSettings.adapters[i].name+')</h4><table style="padding: 20px" id="metaIndexes_div_'+n+'_'+mainSettings.adapters[i].name+'">';
+                            var keysSorted = Object.keys(obj[n][i]).sort();
+                            //for (var j in obj[n][i]){
+                            for (var j = 0, jlen = keysSorted.length; j < jlen; j++) {
+                                t  += '<tr><td><b>' + keysSorted[j] + '</b></td><td>' + JSON.stringify(obj[n][i][keysSorted[j]]) + "</td></tr>";
+                            }
+
+                            t += '</table></td></tr>';
+                        }
+                    }
+                    t += '</table>';
+                }
+                // Show array[objects]
+                else if (n == 'device' || n == 'point' || n == 'channel'){
+                    t += '<table>';
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += '<tr><td>'+i + '</td>' +
+                                '<td>' + JSON.stringify(obj[n][i], null, "  ") + '</td>' +
+                                '<td><b>'+obj.adapterInfo[obj[n][i][0]].name+'</b></td>' +
+                                '<td>'+(dataObjects ? dataObjects[obj[n][i][0]][obj[n][i][1]].name : '')+'</td>' +
+                                '</tr>';
+                        }
+                    }
+                    t += '</table>';
+                }
+                else if (n == 'specType' || n == 'role' || n == 'location' || n == 'favorites'){
+                    t += '<table>';
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += '<tr><td><h4 data-meta="metaIndexes_div_'+n+'_'+i+'">' +i +'</h4><table style="padding: 20px" id="metaIndexes_div_'+n+'_'+i+'">';
+
+                            for (var j = 0, jlen = obj[n][i].length; j < jlen; j++){
+                                if (obj[n][i][j]) {
+                                    t  += '<tr><td>'+ j + '</td>' +
+                                        '<td>' + JSON.stringify(obj[n][i][j], null, "  ") + '</td>' +
+                                        '<td><b>'+obj.adapterInfo[obj[n][i][j][0]].name+'</b></td>' +
+                                        '<td>'+dataObjects[obj[n][i][j][0]][obj[n][i][j][1]].name+'</td>' +
+                                        '</tr>';
+                                }
+                            }
+
+                            t += '</table></td></tr>';
+                        }
+                    }
+                    t += '</table>';
+                }
+                else {
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += i + ' - ' + JSON.stringify(obj[n][i], null, "  ") + '<br>';
+                        }
+                    }
+                }
+                t+='</div>';
+            }
+            t += '</div>';
+            return t;
+        },
+        showObjects: function (obj) {
+            var t = '<div id="metaIndexes">';
+            for (var n in obj) {
+                var count = 0;
+                for (var i in obj[n]){
+                    if (obj[n][i]) {
+                        count++;
+                    }
+                }
+                t  += '<h3 data-meta="metaIndexes_div_'+n+'" id="metaIndexes_h_'+n+'"><table style="margin:10px"><tr><td><span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span></td><td>'+n[0].toUpperCase()+ n.substring(1)+' indexes ('+count+')</td></tr></table></h3>' +
+                    '<div id="metaIndexes_div_'+n+'" style="padding: 10px">\n';
+
+                // Show array[adapters][objects of adapters]
+                if (n == 'name' || n == 'adapterInfo' || n == 'address') {
+                    t += '<table>';
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += '<tr><td><h4 data-meta="metaIndexes_div_'+n+'_'+mainSettings.adapters[i].name+'">' +i + '('+mainSettings.adapters[i].name+')</h4><table style="padding: 20px" id="metaIndexes_div_'+n+'_'+mainSettings.adapters[i].name+'">';
+                            var keysSorted = Object.keys(obj[n][i]).sort();
+                            //for (var j in obj[n][i]){
+                            for (var j = 0, jlen = keysSorted.length; j < jlen; j++) {
+                                t  += '<tr><td><b>' + keysSorted[j] + '</b></td><td>' + JSON.stringify(obj[n][i][keysSorted[j]]) + "</td></tr>";
+                            }
+
+                            t += '</table></td></tr>';
+                        }
+                    }
+                    t += '</table>';
+                }
+                // Show array[objects]
+                else if (n == 'device' || n == 'point' || n == 'channel'){
+                    t += '<table>';
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += '<tr><td>'+i + '</td>' +
+                                '<td>' + JSON.stringify(obj[n][i], null, "  ") + '</td>' +
+                                '<td><b>'+obj.adapterInfo[obj[n][i][0]].name+'</b></td>' +
+                                '<td>'+(dataObjects ? dataObjects[obj[n][i][0]][obj[n][i][1]].name : '')+'</td>' +
+                                '</tr>';
+                        }
+                    }
+                    t += '</table>';
+                }
+                else if (n == 'specType' || n == 'role' || n == 'location' || n == 'favorites'){
+                    t += '<table>';
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += '<tr><td><h4 data-meta="metaIndexes_div_'+n+'_'+i+'">' +i +'</h4><table style="padding: 20px" id="metaIndexes_div_'+n+'_'+i+'">';
+
+                            for (var j = 0, jlen = obj[n][i].length; j < jlen; j++){
+                                if (obj[n][i][j]) {
+                                    t  += '<tr><td>'+ j + '</td>' +
+                                        '<td>' + JSON.stringify(obj[n][i][j], null, "  ") + '</td>' +
+                                        '<td><b>'+obj.adapterInfo[obj[n][i][j][0]].name+'</b></td>' +
+                                        '<td>'+dataObjects[obj[n][i][j][0]][obj[n][i][j][1]].name+'</td>' +
+                                        '</tr>';
+                                }
+                            }
+
+                            t += '</table></td></tr>';
+                        }
+                    }
+                    t += '</table>';
+                }
+                else {
+                    for (var i in obj[n]){
+                        if (obj[n][i]) {
+                            t  += i + ' - ' + JSON.stringify(obj[n][i], null, "  ") + '<br>';
+                        }
+                    }
+                }
+                t+='</div>';
+            }
+            t += '</div>';
+            return t;
         }
     }
 
@@ -633,16 +789,44 @@ $(document).ready(function () {
 
     $mainTabs.tabs({
         activate: function (e, ui) {
-            resizeGrids();
+            control.resizeGrids();
             setTimeout (function () {
                 $( "#metaIndexes h3").each(function () {
                     var id = $(this).attr('data-meta');
+                    var $id = $('#'+id);
                     $(this).addClass('ui-accordion-header ui-helper-reset ui-state-default ui-corner-all ui-accordion-icons');
-                    $('#'+id).hide();
+                    $id.hide();
                     $(this).bind('click', function () {
                         var id = $(this).attr('data-meta');
                         if (id) {
-                            var visible = $('#'+id).is(":visible");
+                            var visible = $id.is(":visible");
+                            $('#'+ $(this).attr('id') + ' ' + 'span').each(function() {
+                                if (visible) {
+                                    $(this).addClass('ui-icon-triangle-1-e');
+                                    $(this).removeClass('ui-icon-triangle-1-s');
+                                }
+                                else {
+                                    $(this).removeClass('ui-icon-triangle-1-e');
+                                    $(this).addClass('ui-icon-triangle-1-s');
+
+                                }
+                            });
+                            $('#'+id).toggle();
+                        }
+                    });
+                });
+                $( "#metaIndexes h4").each(function () {
+                    var id = $(this).attr('data-meta');
+                    if (!id) {
+                        return;
+                    }
+                    var $id = $('#'+id);
+                    $(this).addClass('ui-accordion-header ui-helper-reset ui-state-default ui-corner-all ui-accordion-icons ui-icon-triangle-1-e');
+                    $id.hide();
+                    $(this).bind('click', function () {
+                        var id = $(this).attr('data-meta');
+                        if (id) {
+                            var visible = $id.is(":visible");
                             $('#'+ $(this).attr('id') + ' ' + 'span').each(function() {
                                 if (visible) {
                                     $(this).addClass('ui-icon-triangle-1-e');
@@ -675,11 +859,11 @@ $(document).ready(function () {
         socket.emit("getSettings", function (settings) {
             mainSettings = settings;
             $(".iobroker-version").html(settings.version);
-            $(".iobroker-scriptengine").html(getYesNo(settings.scriptEngineEnabled));
-            $(".iobroker-adapters").html(getYesNo(settings.adaptersEnabled));
-            $(".iobroker-logging").html(getYesNo(settings.logging.enabled));
+            $(".iobroker-scriptengine").html(control.getYesNo(settings.scriptEngineEnabled));
+            $(".iobroker-adapters").html(control.getYesNo(settings.adaptersEnabled));
+            $(".iobroker-logging").html(control.getYesNo(settings.logging.enabled));
 
-            loadSettings();
+            control.loadSettings();
             translateAll();
 
             $("#install_addon_dialog").dialog({
@@ -734,18 +918,18 @@ $(document).ready(function () {
                             for (var adapterId = cUserAdapter, len = mainSettings.adapters.length; adapterId < len; adapterId++){
                                 if (mainSettings.adapters[adapterId]) {
                                     var name = mainSettings.adapters[adapterId].name.replace ("_"+adapterId, "");
-                                    var adapterData = oneAdapterLine (adapterId);
+                                    var adapterData = control.oneAdapterLine (adapterId);
                                     $("#grid_adapter").jqGrid("addRowData", adapterId, adapterData);
                                 }
                             }
                             $(".adapter-settings").click(function () {
-                                editAdapterSettings($(this).attr("data-adapter"));
+                                control.editAdapterSettings($(this).attr("data-adapter"));
                             });
                             $(".adapter-restart").click(function () {
-                                restartAdapter($(this).attr("data-adapter"));
+                                control.restartAdapter($(this).attr("data-adapter"));
                             });
                             $(".adapter-delete").click(function () {
-                                deleteAdapter ($(this).attr("data-adapter"));
+                                control.deleteAdapter ($(this).attr("data-adapter"));
                             });
 
                         }
@@ -759,7 +943,7 @@ $(document).ready(function () {
         socket.emit("getStatus", function (data) {
             var table = "<table style='font-size:12px'>";
             for (var obj in data){
-                table += "<tr><td>" + obj + "</td><td>" + getYesNo(data[obj], true)  + "</td></tr>";
+                table += "<tr><td>" + obj + "</td><td>" + control.getYesNo(data[obj], true)  + "</td></tr>";
             }
             table += "</table>";
             $(".comby-status").html(table);
@@ -787,7 +971,7 @@ $(document).ready(function () {
                         $("#grid_addons").jqGrid('addRowData', i, addonData);
                         $("#loader_addons").append(".");
 
-                        updateAddonHandler("update_addon_"+meta.name);
+                        control.updateAddonHandler("update_addon_"+meta.name);
 
 
                         installedAddons.push(meta.dirname+"="+meta.version);
@@ -803,7 +987,7 @@ $(document).ready(function () {
                 socket.emit("getUrl", url, function(res) {
                     $("#update_self_check").hide();
                     $(".iobroker-availversion").html(res);
-                    if (compareVersion(mainSettings.version, res)) {
+                    if (control.compareVersion(mainSettings.version, res)) {
                         $("#update_self").show().click(function () {
                             socket.emit("updateSelf");
                         });
@@ -842,59 +1026,15 @@ $(document).ready(function () {
                 });
         });
 
-        $("#loader_message").append(translateWord("loading index") + " ... <br/>");
-        socket.emit('getIndex', function(obj) {
-            function showIndex (obj) {
-                var t = '<div id="metaIndexes">';
-                for (var n in obj) {
-                    if (n == 'name' || n == 'adapterInfo' || n == 'address') {
-                        var count = 0;
-                        for (var i in obj[n]){
-                            if (obj[n][i]) {
-                                count++;
-                            }
-                        }
+        $("#loader_message").append(translateWord("loading objects") + " ... <br/>");
+        socket.emit('getObjects', function(obj) {
+            dataObjects = obj;
 
-                        t  += '<h3 data-meta="metaIndexes_div_'+n+'" id="metaIndexes_h_'+n+'"><table style="margin:10px"><tr><td><span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span></td><td>'+n[0].toUpperCase()+ n.substring(1)+' indexes ('+count+')</td></tr></table></h3><div id="metaIndexes_div_'+n+'"><table>\n';
-                        for (var i in obj[n]){
-                            if (obj[n][i]) {
-                                t  += '<tr><td><pre>' +i + '('+mainSettings.adapters[i].name+') - ' +
-                                    JSON.stringify(obj[n][i]);
+            $("#loader_message").append(translateWord("loading index") + " ... <br/>");
+            socket.emit('getIndex', function(obj) {
+                dataIndex = obj;
 
-                                t += '</pre></td></tr>';
-                            }
-                        }
-                        t+='</table></div>';
-                    } else {
-                        var count = 0;
-                        for (var i in obj[n]){
-                            if (obj[n][i]) {
-                                count++;
-                            }
-                        }
-                        t  += '<h3 data-meta="metaIndexes_div_'+n+'" id="metaIndexes_h_'+n+'"><table style="margin:10px"><tr><td><span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span></td><td>'+n[0].toUpperCase()+ n.substring(1)+'s('+count+')</td></tr></table></h3><div id="metaIndexes_div_'+n+'">\n';
-                        for (var i in obj[n]){
-                            if (obj[n][i]) {
-                                t  += i + ' - ' + JSON.stringify(obj[n][i], null, "  ") + '<br>';
-                            }
-                        }
-                        t+='</div>';
-                    }
-                }
-                t += '</div>';
-                return t;
-            }
-
-
-            //$("#index").html(JSON.stringify(obj, null, "  "));
-            $("#index").html (showIndex(obj));
-
-            dataIndex = obj;
-
-            $("#loader_message").append(translateWord("loading objects") + " ... <br/>");
-            socket.emit('getObjects', function(obj) {
-                dataObjects = obj;
-
+                $("#index").html (control.showIndex(dataIndex));
                 // Stringify
                 //$("#meta").html(JSON.stringify(obj, null, "  "));
 
@@ -944,7 +1084,7 @@ $(document).ready(function () {
                     }
                 });
 
-                loadDatapoints();
+                control.loadDatapoints();
             });
         });
 
@@ -983,7 +1123,7 @@ $(document).ready(function () {
 
         socket.on('disconnect', function() {
             setTimeout(function () {
-                showMessage("ioBroker disconnected");
+                control.showMessage("ioBroker disconnected");
                 setInterval(function () {
                     //console.log("trying to force reconnect...");
                     $.ajax({
@@ -1004,14 +1144,14 @@ $(document).ready(function () {
         socket.on("updateStatus", function (data) {
             var table = "<table style='font-size:12px'>";
             for (var obj in data){
-                table += "<tr><td>" + obj + "</td><td>" + getYesNo(data[obj], true)  + "</td></tr>";
+                table += "<tr><td>" + obj + "</td><td>" + control.getYesNo(data[obj], true)  + "</td></tr>";
             }
             table += "</table>";
             $(".comby-status").html(table);
         });
 
         socket.on ("readyBackup", function (name) {
-            showMessage ();
+            control.showMessage ();
             $('#createBackup').button( "option", "disabled", false);
             $('#createBackupWithLog').button( "option", "disabled", false);
             location.replace(name);
@@ -1019,18 +1159,18 @@ $(document).ready(function () {
 
         socket.on ("applyReady", function (text) {
             $('#applyBackup').button( "option", "disabled", false);
-            showMessage ();
-            showMessage (text);
+            control.showMessage ();
+            control.showMessage (text);
         });
 
         socket.on ("applyError", function (text) {
             $('#applyBackup').button( "option", "disabled", false);
-            showMessage ();
-            showMessage (text, "Error");
+            control.showMessage ();
+            control.showMessage (text, "Error");
         });
 
         socket.on("ioMessage", function (data) {
-            showMessage (data);
+            control.showMessage (data);
         });
     }
 
@@ -1043,14 +1183,14 @@ $(document).ready(function () {
 
                 socket.emit("writeFile", file, data, function (res) {
                     //if (res) {
-                    showMessage ("File saved.");
+                    control.showMessage ("File saved.");
                     //} else {
                     //    alert("Error: can't save file");
                     //}
                 });
 
             } catch (e) {
-                showMessage ("Error: "+e);
+                control.showMessage ("Error: "+e);
 
             }
         });
@@ -1170,7 +1310,7 @@ $(document).ready(function () {
             }
             $("#index").html(JSON.stringify(anon, null, "  "));
         });
-        $("#saveSettings").button().click(saveSettings);
+        $("#saveSettings").button().click(control.saveSettings);
         $("#install_addon").button().click(function () {
             $("#install_addon_dialog").dialog("open");
         });
@@ -1180,9 +1320,9 @@ $(document).ready(function () {
                 $("#install_addon_dialog").dialog("close");
                 socket.emit("updateAddon", addonInstall[addon], addon, function (err) {
                     if (err) {
-                        showMessage (err);
+                        control.showMessage (err);
                     } else {
-                        showMessage ("install started");
+                        control.showMessage ("install started");
                     }
                 });
             }
@@ -1217,22 +1357,22 @@ $(document).ready(function () {
             if (availAdapters[adapterName].period) {
                 mainSettings.adapters[adapterId].period = availAdapters[adapterName].period;
             }
-            var adapterData = oneAdapterLine(adapterId);
+            var adapterData = control.oneAdapterLine(adapterId);
             $("#grid_adapter").jqGrid("addRowData", adapterId, adapterData);
 
             $(".adapter-settings").click(function () {
                 editAdapterSettings($(this).attr("data-adapter"));
             });
             $(".adapter-restart").click(function () {
-                restartAdapter($(this).attr("data-adapter"));
+                control.restartAdapter($(this).attr("data-adapter"));
             });
             $(".adapter-delete").click(function () {
-                deleteAdapter ($(this).attr("data-adapter"));
+                control.deleteAdapter ($(this).attr("data-adapter"));
             });
         });
-        $("#adapter_save").button().click(saveAdapterSettings);
+        $("#adapter_save").button().click(control.saveAdapterSettings);
         $("#adapter_close").button().click(function () {
-            if (saveAdapterSettings()) {
+            if (control.saveAdapterSettings()) {
                 $("#adapter_config").hide();
                 $("#adapter_overview").show();
             }
@@ -1273,7 +1413,7 @@ $(document).ready(function () {
         $dataPointGrid.jqGrid({
             datatype: "local",
 
-            colNames:['id', 'adapter', 'objectId', getWord('TypeName'), getWord('Name'), getWord('Parent Name'), getWord('Value'), getWord('Timestamp'), getWord('ack'), getWord('lastChange')],
+            colNames:['id', 'adapter', 'objectId', control.getWord('TypeName'), control.getWord('Name'), control.getWord('Parent Name'), control.getWord('Value'), control.getWord('Timestamp'), control.getWord('ack'), control.getWord('lastChange')],
             colModel:[
                 {name:'id',index:'id', width:60, sorttype: "int"},
                 {name:'adapter',index:'adapter', width:40, sorttype: "int"},
@@ -1292,11 +1432,10 @@ $(document).ready(function () {
             height: 440,
             rowList:[20,100,500,1000],
             pager: jQuery('#pager_datapoints'),
-            sortname: 'timestamp',
             viewrecords: true,
             sortname: "id",
             sortorder: "asc",
-            caption: getWord("datapoints"),
+            caption: control.getWord("datapoints"),
             onSelectRow: function(id){
                 if(id && id!==datapointsLastSel){
                     $dataPointGrid.restoreRow(datapointsLastSel);
@@ -1320,12 +1459,12 @@ $(document).ready(function () {
                 enableClear: false
             }).navGrid('#pager_datapoints',{search:false, refresh: false, edit:false,add:true,addicon: "ui-icon-refresh", del:false, addfunc: function() {
                 $dataPointGrid.jqGrid("clearGridData");
-                loadDatapoints();
+                control.loadDatapoints();
             }});
 
         $("#grid_addons").jqGrid({
             datatype: "local",
-            colNames:['id', getWord('name'), getWord('installed version'), getWord('available version'), getWord('homepage'), getWord('download')],
+            colNames:['id', control.getWord('name'), control.getWord('installed version'), control.getWord('available version'), control.getWord('homepage'), control.getWord('download')],
             colModel:[
                 {name:'id',index:'id', width:60, sorttype: "int", hidden: true},
                 {name:'name',index:'name', width:340, sorttype: "int"},
@@ -1342,12 +1481,12 @@ $(document).ready(function () {
             sortname: "id",
             sortorder: "asc",
             viewrecords: true,
-            caption: getWord("Addons")
+            caption: control.getWord("Addons")
         });
 
         $("#grid_adapter").jqGrid({
             datatype: "local",
-            colNames:['id', getWord('name'), getWord('settings'), getWord('confed'), getWord('mode'), getWord('period')],
+            colNames:['id', control.getWord('name'), control.getWord('settings'), control.getWord('confed'), control.getWord('mode'), control.getWord('period')],
             colModel:[
                 {name:'id',      index:'id',       width:60,  sorttype: "int", hidden: true},
                 {name:'name',    index:'name',     width:340, sorttype: "int"},
@@ -1364,13 +1503,13 @@ $(document).ready(function () {
             sortname: "id",
             sortorder: "asc",
             viewrecords: true,
-            caption: getWord("Adapter")
+            caption: control.getWord("Adapter")
         });
 
         // Create events grid
         $eventGrid.jqGrid({
             datatype: "local",
-            colNames:[getWord('eventCount'),'id', 'aid', 'oid', getWord('TypeName'), getWord('Name'), getWord('Parent Name'),getWord('Value'), getWord('Timestamp'), getWord('ack'), getWord('lastChange')],
+            colNames:[control.getWord('eventCount'),'id', 'aid', 'oid', control.getWord('TypeName'), control.getWord('Name'), control.getWord('Parent Name'),control.getWord('Value'), control.getWord('Timestamp'), control.getWord('ack'), control.getWord('lastChange')],
             colModel:[
                 {name:'id',index:'id', width:60, sorttype: "int", hidden: true},
                 {name:'ise_id',index:'ise_id', width:60, sorttype: "int"},
@@ -1394,8 +1533,7 @@ $(document).ready(function () {
             sortname: "id",
             sortorder: "desc",
             viewrecords: true,
-            sortorder: "desc",
-            caption: getWord("Events"),
+            caption: control.getWord("Events"),
             ignoreCase:true
         }).jqGrid('filterToolbar',{
                 defaultSearch:'cn',
@@ -1411,7 +1549,7 @@ $(document).ready(function () {
         // Create connections grid
         $connGrid.jqGrid({
             datatype: "local",
-            colNames:['id', getWord('Self name'), getWord('AdapterID'), getWord('Name'), getWord('TypeName'), getWord('IP'), getWord('Port'), getWord('SocketID'), getWord('Connect on')],
+            colNames:['id', control.getWord('Self name'), control.getWord('AdapterID'), control.getWord('Name'), control.getWord('TypeName'), control.getWord('IP'), control.getWord('Port'), control.getWord('SocketID'), control.getWord('Connect on')],
             colModel:[
                 {name:'id',       index:'id', hidden: true},
                 {name:'selfName', index:'selfName',  width:80},
@@ -1432,13 +1570,12 @@ $(document).ready(function () {
             sortname: "id",
             sortorder: "desc",
             viewrecords: true,
-            sortorder: "desc",
-            caption: getWord("Connections"),
+            caption: control.getWord("Connections"),
             ignoreCase:true
         });
     }
 
     $(window).resize(function() {
-        resizeGrids();
+        control.resizeGrids();
     });
 });

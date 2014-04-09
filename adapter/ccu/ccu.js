@@ -102,7 +102,24 @@ socket.on('connect', function () {
 });
 
 socket.on('reconnect', function () {
-    //onConnect(this);
+    logger.info("ccu adapter   reconnect");
+    socket.emit ("getAdapterSettings", process.env.adapterId, function (data) {
+        settings = data;
+        if (!settings) {
+            process.exit();
+        }
+        // Send new data to ioBroker
+        updateDataTree   ();
+        updateDataPoints ();
+
+        regaReady = true;
+        socket.emit ("setStatus", "ccuRegaData", regaReady);
+
+        if (rebuild) {
+            logger.info("rega          data succesfully reloaded");
+            socket.emit("reloadDataReady", process.env.adapterId);
+        }
+    });
 });
 
 socket.on('reloadData', function () {
