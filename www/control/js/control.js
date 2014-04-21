@@ -175,7 +175,7 @@ $(document).ready(function () {
                             $("input#update_"+obj.ident).click(function () {
                                 $(this).attr("disabled", true);
                                 var that = this;
-                                socket.emit("updateAddon", obj.urlDownload, obj.dirname, function (err) {
+                                socket.emit("update", obj.urlDownload, obj.dirname, function (err) {
                                     if (err) {
                                         control.showMessage(err);
                                     } else {
@@ -205,7 +205,7 @@ $(document).ready(function () {
                                 $("input#update_"+obj.ident).click(function () {
                                     $(this).attr("disabled", true);
                                     var that = this;
-                                    socket.emit("updateAddon", obj.urlDownload, obj.dirname, function (err) {
+                                    socket.emit("update", obj.urlDownload, obj.dirname, function (err) {
                                         if (err) {
                                             control.showMessage(err);
                                         } else {
@@ -294,10 +294,10 @@ $(document).ready(function () {
                         var data = {
                             id:         combyId,
                             adapter:    mainSettings.adapters[adapterId].name,
-                            objectId:  objId,
-                            name:       (dataObjects[adapterId][objId] ? dataObjects[adapterId][objId].name : ""),
-                            parent:     (dataObjects[adapterId][objId] && dataObjects[adapterId][objId].parent ? dataObjects[adapterId][dataObjects[adapterId][objId].parent].name : ""),
-                            type:       (dataObjects[adapterId][objId] ? dataObjects[adapterId][objId].specType : ""),
+                            objectId:   objId,
+                            name:       (dataObjects && dataObjects[adapterId] && dataObjects[adapterId][objId] ? dataObjects[adapterId][objId].name : ""),
+                            parent:     (dataObjects && dataObjects[adapterId] && dataObjects[adapterId][objId] && dataObjects[adapterId][objId].parent ? dataObjects[adapterId][dataObjects[adapterId][objId].parent].name : ""),
+                            type:       (dataObjects && dataObjects[adapterId] && dataObjects[adapterId][objId] ? dataObjects[adapterId][objId].specType : ""),
                             val:        $('<div/>').text(dataValues[adapterId][objId].val).html(),
                             timestamp:  (dataValues[adapterId][objId].ts == "1970-01-01 01:00:00" ? "" : dataValues[adapterId][objId].ts),
                             ack:        dataValues[adapterId][objId].ack,
@@ -449,7 +449,7 @@ $(document).ready(function () {
                 mainSettings.useCache = false;
             }
 
-            socket.emit("setSettings", mainSettings, function () {
+            socket.emit("setSettings", mainSettings, cSystem, function () {
                 control.showMessage ("ioBroker settings saved. Please restart ioBroker");
             });
         },
@@ -543,7 +543,7 @@ $(document).ready(function () {
                 var adapterSettings = JSON.parse($("#adapter_config_json").val());
                 mainSettings.adapters[adapterId].configured = true;
                 mainSettings.adapters[adapterId].settings   = adapterSettings;
-                socket.emit("setSettings", mainSettings, function () {
+                socket.emit("setSettings", mainSettings, adapterId, function () {
                     control.showMessage ("ioBroker settings saved. Please restart ioBroker");
                 });
                 return true;
@@ -607,7 +607,7 @@ $(document).ready(function () {
                             t  += '<tr><td>'+i + '</td>' +
                                 '<td>' + JSON.stringify(obj[n][i], null, "  ") + '</td>' +
                                 '<td><b>'+obj.adapterInfo[obj[n][i][0]].name+'</b></td>' +
-                                '<td>'+(dataObjects ? dataObjects[obj[n][i][0]][obj[n][i][1]].name : '')+'</td>' +
+                                '<td>'+((dataObjects && dataObjects[obj[n][i][0]])? dataObjects[obj[n][i][0]][obj[n][i][1]].name : '')+'</td>' +
                                 '</tr>';
                         }
                     }
@@ -624,7 +624,7 @@ $(document).ready(function () {
                                     t  += '<tr><td>'+ j + '</td>' +
                                         '<td>' + JSON.stringify(obj[n][i][j], null, "  ") + '</td>' +
                                         '<td><b>'+obj.adapterInfo[obj[n][i][j][0]].name+'</b></td>' +
-                                        '<td>'+dataObjects[obj[n][i][j][0]][obj[n][i][j][1]].name+'</td>' +
+                                        '<td>'+((dataObjects && dataObjects[obj[n][i][j][0]]) ? dataObjects[obj[n][i][j][0]][obj[n][i][j][1]].name : '')+'</td>' +
                                         '</tr>';
                                 }
                             }
@@ -647,80 +647,32 @@ $(document).ready(function () {
             return t;
         },
         showObjects: function (obj) {
-            var t = '<div id="metaIndexes">';
-            for (var n in obj) {
-                var count = 0;
-                for (var i in obj[n]){
-                    if (obj[n][i]) {
-                        count++;
-                    }
+            for (var adapterId = 0, len = dataObjects.length; adapterId < len; adapterId++) {
+                if (!dataObjects[adapterId]) {
+                    continue
                 }
-                t  += '<h3 data-meta="metaIndexes_div_'+n+'" id="metaIndexes_h_'+n+'"><table style="margin:10px"><tr><td><span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span></td><td>'+n[0].toUpperCase()+ n.substring(1)+' indexes ('+count+')</td></tr></table></h3>' +
-                    '<div id="metaIndexes_div_'+n+'" style="padding: 10px">\n';
-
-                // Show array[adapters][objects of adapters]
-                if (n == 'name' || n == 'adapterInfo' || n == 'address') {
-                    t += '<table>';
-                    for (var i in obj[n]){
-                        if (obj[n][i]) {
-                            t  += '<tr><td><h4 data-meta="metaIndexes_div_'+n+'_'+mainSettings.adapters[i].name+'">' +i + '('+mainSettings.adapters[i].name+')</h4><table style="padding: 20px" id="metaIndexes_div_'+n+'_'+mainSettings.adapters[i].name+'">';
-                            var keysSorted = Object.keys(obj[n][i]).sort();
-                            //for (var j in obj[n][i]){
-                            for (var j = 0, jlen = keysSorted.length; j < jlen; j++) {
-                                t  += '<tr><td><b>' + keysSorted[j] + '</b></td><td>' + JSON.stringify(obj[n][i][keysSorted[j]]) + "</td></tr>";
-                            }
-
-                            t += '</table></td></tr>';
-                        }
+                for (var objId = 0, _len = dataObjects[adapterId].length; objId < _len; objId++) {
+                    if (!dataObjects[adapterId][objId]) {
+                        continue;
                     }
-                    t += '</table>';
+                    var combyId = adapterId << cAdapterShift | objId;
+                    var data = {
+                        id:         combyId,
+                        adapter:    mainSettings.adapters[adapterId].name,
+                        objectId:   objId,
+                        name:       (dataObjects[adapterId][objId] ?  dataObjects[adapterId][objId].name : ""),
+                        parent:     (dataObjects[adapterId][objId] && dataObjects[adapterId][objId].parent ? dataObjects[adapterId][dataObjects[adapterId][objId].parent].name : ""),
+                        type:       (dataObjects[adapterId][objId] ?  dataObjects[adapterId][objId].specType : ""),
+                        location:   (dataObjects[adapterId][objId] ?  dataObjects[adapterId][objId].specType : ""),
+                        role:       (dataObjects[adapterId][objId] ?  dataObjects[adapterId][objId].specType : ""),
+                        favorites:  (dataObjects[adapterId][objId] ?  dataObjects[adapterId][objId].specType : ""),
+                        children:   (dataObjects[adapterId][objId] ?  dataObjects[adapterId][objId].specType : "")
+                    };
+                    $dataPointGrid.jqGrid('addRowData',combyId,data);
                 }
-                // Show array[objects]
-                else if (n == 'device' || n == 'point' || n == 'channel'){
-                    t += '<table>';
-                    for (var i in obj[n]){
-                        if (obj[n][i]) {
-                            t  += '<tr><td>'+i + '</td>' +
-                                '<td>' + JSON.stringify(obj[n][i], null, "  ") + '</td>' +
-                                '<td><b>'+obj.adapterInfo[obj[n][i][0]].name+'</b></td>' +
-                                '<td>'+(dataObjects ? dataObjects[obj[n][i][0]][obj[n][i][1]].name : '')+'</td>' +
-                                '</tr>';
-                        }
-                    }
-                    t += '</table>';
-                }
-                else if (n == 'specType' || n == 'role' || n == 'location' || n == 'favorites'){
-                    t += '<table>';
-                    for (var i in obj[n]){
-                        if (obj[n][i]) {
-                            t  += '<tr><td><h4 data-meta="metaIndexes_div_'+n+'_'+i+'">' +i +'</h4><table style="padding: 20px" id="metaIndexes_div_'+n+'_'+i+'">';
-
-                            for (var j = 0, jlen = obj[n][i].length; j < jlen; j++){
-                                if (obj[n][i][j]) {
-                                    t  += '<tr><td>'+ j + '</td>' +
-                                        '<td>' + JSON.stringify(obj[n][i][j], null, "  ") + '</td>' +
-                                        '<td><b>'+obj.adapterInfo[obj[n][i][j][0]].name+'</b></td>' +
-                                        '<td>'+dataObjects[obj[n][i][j][0]][obj[n][i][j][1]].name+'</td>' +
-                                        '</tr>';
-                                }
-                            }
-
-                            t += '</table></td></tr>';
-                        }
-                    }
-                    t += '</table>';
-                }
-                else {
-                    for (var i in obj[n]){
-                        if (obj[n][i]) {
-                            t  += i + ' - ' + JSON.stringify(obj[n][i], null, "  ") + '<br>';
-                        }
-                    }
-                }
-                t+='</div>';
             }
-            t += '</div>';
-            return t;
+            $("#loader").remove();
+            $dataPointGrid.trigger("reloadGrid");
         }
     }
 
@@ -781,11 +733,12 @@ $(document).ready(function () {
 
     var eventCounter = 0;
 
-    var $mainTabs      = $("#mainTabs");
-    var $subTabs5      = $("#subTabs5");
-    var $dataPointGrid = $('#grid_datapoints');
-    var $eventGrid     = $('#grid_events');
-    var $connGrid      = $('#grid_connections');
+    var $mainTabs        = $("#mainTabs");
+    var $subTabs5        = $("#subTabs5");
+    var $dataPointGrid   = $('#grid_datapoints');
+    var $eventGrid       = $('#grid_events');
+    var $connGrid        = $('#grid_connections');
+    var $dataObjectsGrid = $('#grid_dataobjects');
 
     $mainTabs.tabs({
         activate: function (e, ui) {

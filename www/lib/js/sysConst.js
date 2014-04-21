@@ -14,6 +14,8 @@ var cSettingsAdapter = 0xFFE;
 // Variables in cSystem
 var cSystemLanguage    = 1;
 var cSystemReady       = 2;
+var cSystemRestartRequired = 3;
+var cSystemWhyRestartRequired = 4;
 
 var cAdapterMask  = 0xFFF;
 var cAdapterShift = 20; // Bits
@@ -37,7 +39,8 @@ if (typeof module !== "undefined" && typeof module.exports != "undefined") {
 
         cSystemLanguage    :cSystemLanguage      ,
         cSystemReady       :cSystemReady         ,
-
+        cSystemRestartRequired:  cSystemRestartRequired,
+        cSystemWhyRestartRequired:  cSystemWhyRestartRequired,
         cAdapterMask       :cAdapterMask         ,
         cAdapterShift      :cAdapterShift        ,
         cObjectsMask       :cObjectsMask         ,

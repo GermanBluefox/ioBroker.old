@@ -1,30 +1,51 @@
 {
-    "httpEnabled": true,
-    "ioListenPort": 8080,
-    "httpsEnabled": false,
+    "httpEnabled":     true,
+    "ioListenPort":    8080,
+
+    "httpsEnabled":    false,
     "ioListenPortSsl": 8443,
-    "useCache":true,
+
+    "useCache":        true,
+    "language":        "en",
 
     "authentication": {
-        "enabled": false,
+        "enabled":    false,
         "enabledSsl": false,
-        "user": "admin",
-        "password": "password"
+        "user":       "admin",
+        "password":   "password"
     },
 
     "logging": {
-        "enabled": true,
-        "file": "devices-variables.log",
-        "move": true,
+        "enabled":       true,
+        "file":          "devices-variables.log",
+        "move":          true,
         "varChangeOnly": true,
         "writeInterval": 60
     },
-    "stats": true,
-    "statsIntervalMinutes": 15,
 
-    "scriptEngineEnabled": false,
+    "commStats" : {
+        "enabled":         true,
+        "intervalMinutes": 15
+    },
 
-    "longitude": 9.1833,
-    "latitude": 48.7667,
-    "language": "en"
+    "position" : {
+        "longitude": 9.1833,
+        "latitude":  48.7667,
+    },
+
+    "repository": {
+        "active" : "archive/install.json",
+        "list"   : ["archive/install.json"]
+    },
+
+    "useStats" : {
+        "enabled": true,
+        "options": {
+            "uptime":   true,
+            "adapters": true,
+            "addons":   true,
+            "os_name":  true,
+            "platform": true
+        }
+    }
 }

@@ -109,11 +109,11 @@ socket.on('reconnect', function () {
             process.exit();
         }
         // Send new data to ioBroker
-        updateDataTree   ();
-        updateDataPoints ();
+        updateDataTree();
+        updateDataPoints();
 
         regaReady = true;
-        socket.emit ("setStatus", "ccuRegaData", regaReady);
+        socket.emit("setStatus", "ccuRegaData", regaReady);
 
         if (rebuild) {
             logger.info("rega          data succesfully reloaded");
@@ -124,7 +124,7 @@ socket.on('reconnect', function () {
 
 socket.on('reloadData', function () {
     regaReady = false;
-    socket.emit ("setStatus", "ccuRegaData", regaReady);
+    socket.emit("setStatus", "ccuRegaData", regaReady);
     clearRegaData();
     loadRegaData(0, null, true);
 });
@@ -357,7 +357,7 @@ function tryReconnect() {
 function reconnect() {
 
     regahss.loadStringTable(settings.stringTableLanguage, function (data) {
-        socket.emit ("setStringtable", data);
+        socket.emit("setStringtable", data);
     });
 
     if (initsDone) {
@@ -367,11 +367,11 @@ function reconnect() {
 
     regaReady = false;
 
-    socket.emit ("setStatus", {initsDone: initsDone, ccuRegaData: regaReady});
+    socket.emit("setStatus", {initsDone: initsDone, ccuRegaData: regaReady});
     clearRegaData();
     setTimeout(function () {
         regahss.checkTime(function () {
-            loadRegaData (0, null, null, true);
+            loadRegaData(0, null, null, true);
         });
     }, 2500);
 }

@@ -1,5 +1,5 @@
 /**
- *      ioBroker - HOMe cOMmANDER for Node.js
+ *      ioBroker - communication brocker for Node.js
  *
  *      Socket.IO based Home Automation Interface
  *
@@ -20,6 +20,7 @@ if (typeof __dirname == "undefined") {
 
 var settings = require(__dirname+'/settings.js');
 
+// Do not change formatting of the next string, because used in Grunt. (Value can be changed)
 settings.version             = "2.0.0";
 settings.basedir             = __dirname;
 settings.datastorePath       = __dirname+"/datastore/";
@@ -131,7 +132,7 @@ function createSystemVariables () {
         // Object value
         settings.language || 'en'
     );
-// Create ready variable
+    // Create ready variable
     addObject (c.cSystem, c.cSystemReady,
         // Object description
         {   name:        "Ready",
@@ -143,6 +144,32 @@ function createSystemVariables () {
         },
         // Object value
         false
+    );
+    // Create restart required variable
+    addObject (c.cSystem, c.cSystemRestartRequired,
+        // Object description
+        {   name:        "RestartRequired",
+            specType:    "Variable",
+            type:        c.cObjTypePoint,
+            isPersistent:false,
+            isLogged:    false,
+            description: "If restart of core required"
+        },
+        // Object value
+        false
+    );
+    // Create restart reason variable
+    addObject (c.cSystem, c.cSystemWhyRestartRequired,
+        // Object description
+        {   name:        "WhyRestartRequired",
+            specType:    "Variable",
+            type:        c.cObjTypePoint,
+            isPersistent:false,
+            isLogged:    false,
+            description: "List of adapters which requires restart"
+        },
+        // Object value
+        ""
     );
 }
 
@@ -164,12 +191,12 @@ if (settings.logging.enabled) {
     }
 }
 
-var stats = {
+var commStats = {
     clients: 0,
     counters: {}, // counters in form {rx: 5, wired: 10}
     start: ((new Date()).getTime()),
     uptime: function() {
-        var mseconds = ((new Date()).getTime()) - stats.start;
+        var mseconds = ((new Date()).getTime()) - commStats.start;
         var diff = new Date(mseconds);
         var hours = diff.getHours();
         var days = Math.floor(hours/24);
@@ -177,20 +204,20 @@ var stats = {
         return days+" days, "+(hours-1)+" hours, "+ diff.getMinutes()+" minutes, "+diff.getSeconds()+" seconds";
     },
     log: function() {
-        for (var cnt in stats.counters) {
-            if (stats.counters[cnt].last === undefined) {
-                stats.counters[cnt].last = 0;
+        for (var cnt in commStats.counters) {
+            if (commStats.counters[cnt].last === undefined) {
+                commStats.counters[cnt].last = 0;
             }
-            logger.info("ioBroker stats  "+cnt+": "+((stats.counters[cnt].value - stats.counters[cnt].last)/settings.statsIntervalMinutes).toFixed(0)+"msg/min");
-            stats.counters[cnt].last = stats.counters[cnt].value;
+            logger.info("ioBroker stats  "+cnt+": "+((commStats.counters[cnt].value - commStats.counters[cnt].last)/settings.statsIntervalMinutes).toFixed(0)+"msg/min");
+            commStats.counters[cnt].last = commStats.counters[cnt].value;
         }
         logger.info("ioBroker stats  "+socketList.length+" Socket.IO Clients connected");
-        logger.verbose("ioBroker uptime "+stats.uptime());
+        logger.verbose("ioBroker uptime "+commStats.uptime());
     }
 };
 
-if (settings.stats) {
-    setInterval(stats.log, settings.statsIntervalMinutes * 60000);
+if (settings.commStats.enabled) {
+    setInterval(commStats.log, settings.commStats.intervalMinutes * 60000);
 }
 
 // Copy directory (used for the driver device images)
@@ -238,6 +265,7 @@ function insertSorted (arr, element) {
     }
     return arr;
 }
+
 // Convert value to formatted object {val, ts(timestamp), ack(acknowledged), ls (last changed)}
 function getObjValue (value) {
     var objVal = {val: null, ts: null, ack: true, lc: null};
@@ -1080,13 +1108,13 @@ function initSocketIO(_io) {
         });
 
         socket.on('restartAdapter', function (adapter) {
-           return startAdapter(adapter)
+            return startAdapter(adapter)
         });
 
-        socket.on('updateAddon', function (_url, name) {
-            var path = __dirname + "/update-addon.js";
-            logger.info("ioBroker  starting "+path+" "+_url+" "+name);
-            var updateProcess = cp.fork(path, [_url, name]);
+        socket.on('update', function (_url) {
+            var path = __dirname + "/update.js";
+            logger.info("ioBroker  starting "+path+" "+_url);
+            var updateProcess = cp.fork(path, [_url]);
             updateProcess.on("close", function (code) {
                 var msg;
                 if (code == 0) {
@@ -1095,19 +1123,19 @@ function initSocketIO(_io) {
                     msg = " failed.";
                 }
                 if (io) {
-                    io.sockets.emit('ioMessage', 'Update '+name+msg);
+                    io.sockets.emit('ioMessage', 'Update '+_url + ' ' + msg);
                 }
                 if (ioSsl) {
-                    ioSsl.sockets.emit('ioMessage', 'Update '+name+msg);
+                    ioSsl.sockets.emit('ioMessage', 'Update '+_url + ' ' + msg);
                 }
             });
         });
 
-        socket.on('updateSelf', function () {
-            var path = __dirname + "/update-self.js";
+        socket.on('updateSelf', function (_url) {
+            var path = __dirname + "/update.js";
             settings.updateSelfRunning = true;
             logger.info("ioBroker  starting "+path);
-            var updateProcess = cp.fork(path);
+            var updateProcess = cp.fork(path, [_url]);
             if (io) {
                 io.sockets.emit('ioMessage', 'Update started. Please be patient...');
             }
@@ -1124,7 +1152,7 @@ function initSocketIO(_io) {
                         ioSsl.sockets.emit('ioMessage', 'Update done. Restarting...');
                     }
                     logger.info('ioBroker  update done. restarting...');
-                    cp.fork(__dirname+'/ioBroker-server.js', ['restart']);
+                    cp.fork(__dirname+'/ioBroker.js', ['restart']);
                 } else {
                     logger.error("ioBroker  update failed.");
                     if (io) {
@@ -1373,31 +1401,48 @@ function initSocketIO(_io) {
         socket.on('getUrl', function (_url, callback) {
             logger.info("ioBroker  GET "+_url);
             if (_url.match(/^https/)) {
-                https.get(_url, function(res) {
-                    var body = "";
-                    res.on("data", function (data) {
-                        body += data;
-                    });
-                    res.on("end", function () {
-                        callback(body);
-                    });
-
-                }).on('error', function(e) {
-                        logger.error("ioBroker  GET "+_url+" "+ e.message);
-                    });
-            } else {
-                http.get(_url, function(res) {
-                    var body = "";
-                    res.on("data", function (data) {
-                        body += data;
-                    });
-                    res.on("end", function () {
-                        callback(body);
-                    });
-                }).on('error', function(e) {
-                    logger.error("ioBroker  GET "+_url+" "+ e.message);
-                });
+                protocol = https;
             }
+            protocol.get(_url, function(res) {
+                var body = "";
+                res.on("data", function (data) {
+                    body += data;
+                });
+                res.on("end", function () {
+                    if (callback) {
+                        callback(body);
+                    }
+                });
+            }).on('error', function(e) {
+                logger.error("ioBroker  GET "+_url+" "+ e.message);
+                if (callback) {
+                    callback(null);
+                }
+            });
+        });
+
+        // Download file and store it in tmp directory
+        socket.on('downloadFile', function (_url, localFile, callback) {
+            logger.info("ioBroker  GET Packet: "+_url);
+            var file = fs.createWriteStream(__dirname + '/tmp/' + localFile);
+            var protocol = http;
+
+            if (_url.match(/^https/)) {
+                protocol = https;
+            }
+            protocol.get(_url, function(res) {
+                res.pipe(file);
+                file.on('finish', function(){
+                    if (callback) {
+                        callback(localFile);
+                    }
+                });
+            }).on('error', function(e) {
+                logger.error("ioBroker  GET "+_url+" "+ e.message);
+                if (callback) {
+                    callback(localFile, e.message);
+                }
+            });
         });
 
         socket.on('getStatus', function (callback) {
@@ -1417,27 +1462,38 @@ function initSocketIO(_io) {
         });
 
         socket.on('setStats', function(name, value) {
-            if (!stats.counters[name]) {
-                stats.counters[name] = {value: 0};
+            if (!commStats.counters[name]) {
+                commStats.counters[name] = {value: 0};
             }
 
-            stats.counters[name].value = value;
+            commStats.counters[name].value = value;
         });
 
-        socket.on('getNextId', function (start, callback) {
-            callback(nextId(start));
-        });
-
-        socket.on('getSettings', function (callback) {
-            callback(settings);
+        // Get communication statistics
+        socket.on('getStats', function(name, callback) {
+            if (!callback) {
+                return;
+            }
+            if (name) {
+                callback(commStats.counters[name]);
+            }
+            else {
+                callback(commStats.counters);
+            }
         });
 
         socket.on('getAdapterSettings', function (adapterId, callback) {
             callback(settings.adapters[adapterId] ? settings.adapters[adapterId].settings : null);
         });
 
-        socket.on('setSettings', function (_settings, callback) {
+        socket.on('getSettings', function (callback) {
+            callback(settings);
+        });
+
+        socket.on('setSettings', function (_settings, reasonId, callback) {
             settings = _settings;
+
+            // TODO may be move this into install function
             // Copy devices directory of all adapters to www/img/adapters
             for (var i = c.cUserAdapter, len = settings.adapters.length; i < len; i++) {
                 if (settings.adapters[i]) {
@@ -1447,12 +1503,25 @@ function initSocketIO(_io) {
 
             logger.verbose("socket.io <-- writeFile settings.json");
             var _settings = _.clone(settings);
-            // Remove standart adapters
+
+            // Set that restart required
+            setPointValue([c.cSystem, c.cSystemRestartRequired], true);
+
+            // Set why restart required
+            var reason = dataValues[c.cSystem][c.cSystemWhyRestartRequired].val;
+            if (reason.indexOf(settings.adapters[reasonId]) == -1) {
+                reason += ((reason) ? ', ': '') + settings.adapters[reasonId].name;
+                setPointValue([c.cSystem, c.cSystemWhyRestartRequired], reason);
+            }
+
+            // Remove standard adapters
             _settings.adapters[c.cSystem] = null;
             _settings.adapters[c.cScript] = null;
 
-            fs.writeFile(settings.datastorePath+"settings.json", JSON.stringify(_settings));
+            fs.writeFile(settings.datastorePath+'settings.json', JSON.stringify(_settings));
+
             _settings = null;
+
             // Todo Fehler abfangen
             if (callback) {
                 callback(true);
@@ -1460,13 +1529,18 @@ function initSocketIO(_io) {
         });
 
         socket.on('getVersion', function(callback) {
-            callback(settings.version);
+            if (callback) {
+                callback(settings.version);
+            }
         });
 
         socket.on('getPointValues', function(callback) {
             logger.verbose("socket.io <-- getData");
-
-            callback(dataValues);
+            if (callback) {
+                callback(dataValues);
+            } else {
+                logger.error('getPointValues called with null callback');
+            }
         });
 
         socket.on('getPointValue', function(objId, callback) {
@@ -1482,44 +1556,64 @@ function initSocketIO(_io) {
                 logger.warn ("getPointValue: invalid adapter id " + adapterId + " for object " + objId);
             }
             else {
-                callback(id, dataValues[adapterId][objId]);
+                if (callback) {
+                    callback(id, dataValues[adapterId][objId]);
+                } else {
+                    logger.error('getPointValue called with null callback');
+                }
             }
         });
 		
         socket.on('getObjects', function(callback) {
             logger.verbose("socket.io <-- getObjects");
-            callback(metaObjects);
+            if (callback) {
+                callback(metaObjects);
+            } else {
+                logger.error('getObjects called with null callback');
+            }
         });
 
         socket.on('getIndex', function(callback) {
             logger.verbose("socket.io <-- getIndex");
-            callback(metaIndex);
+            if (callback) {
+                callback(metaIndex);
+            } else {
+                logger.error('getIndex called with null callback');
+            }
         });
 
         socket.on('addObject', function (objId, obj, value, callback) {
             if (this.adapterId) {
                 if (addObject (this.adapterId, objId, obj, value) != null) {
-                    if (callback) callback (true);
+                    if (callback) {
+                        callback (true);
+                    }
                 }
                 else
-                if (callback) callback (false);
+                if (callback) {
+                    callback (false);
+                }
             }
             else {
                 if (typeof objId != 'object') {
-                    log.warn('addObject : objId must be defined as array');
+                    logger.warn('addObject : objId must be defined as array');
                     if (callback) {
                         callback (false);
                     }
                 }
                 else if (objId.length > 1) {
                     if (addObject (objId[0], objId[1], obj, value)) {
-                        if (callback) callback(true);
+                        if (callback) {
+                            callback(true);
+                        }
                     }
                     else
-                    if (callback) callback (false);
+                    if (callback) {
+                        callback (false);
+                    }
                 }
                 else {
-                    log.warn("addObject : objId must be defined as array with [adapter, obj]");
+                    logger.warn("addObject : objId must be defined as array with [adapter, obj]");
                     if (callback) {
                         callback (false);
                     }
@@ -1796,7 +1890,7 @@ function stop() {
 
 function quit() {
     logger.verbose("ioBroker  quit");
-	logger.info("ioBroker  uptime "+stats.uptime());
+	logger.info("ioBroker  uptime "+commStats.uptime());
 	logger.info("ioBroker  terminating");
 	setTimeout(function () {
 		process.exit(0);

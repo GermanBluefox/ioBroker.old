@@ -1,0 +1,11 @@
+{
+	"name":      "ioBroker.core",
+	"version":   "2.0.1",
+	"platforms": "windows, linux, macOS",
+	"hardware":  "RaspberryPi, PC, Mac",
+	"description": {
+		"en": "Basis core of the ioBroker",
+		"de": "Kern von ioBroker",
+		"ru": "Основное ядро ioBroker"
+	}
+}

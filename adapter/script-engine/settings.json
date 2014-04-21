@@ -1,8 +1,0 @@
-{
-    "name": "script-engine",
-	"description": "User script engine",
-    "desiredId": 2,
-    "multiData": true,
-    "settings": {
-    }
-}
