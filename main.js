@@ -234,6 +234,14 @@ function copyDir (srcDir, destSrc) {
     }
 }
 
+function indexOfSorted (element, arr) {
+    var num = locationOf(element, arr);
+    if (arr[num][2] == element[2]) {
+        return num;
+    }
+    return -1;
+}
+
 // Binary search
 function locationOf (element, arr, start, end) {
     start = start || 0;
@@ -324,7 +332,8 @@ function getObjValue (value) {
 //                    or as array [val, ts, ack, lc]
 //                    if just value is set up - timestamp and lastchanged will be current time, ack = true
 //                    If "ack" (acknowledged) is false, this value was set by user from GUI or from script. If true means value came from adapter or it is variable
-function addObject (adapterID, objID, obj, value, infromAdapters) {
+function addObject (adapterID, objID, obj, value, informAdapters) {
+    var processedFields = ['parent', 'type', 'name', 'children', 'specType', 'address'];
     adapterID = getAdapterId (adapterID);
     objID = parseInt (objID);
 
@@ -388,14 +397,6 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
         obj.location = [obj.location];
     }
 
-    if (obj.favorite && typeof obj.favorite == 'string') {
-        obj.favorite = [obj.favorite];
-    }
-
-    if (obj.role && typeof obj.role == 'string') {
-        obj.role = [obj.role];
-    }
-
     if (obj.parent === undefined || obj.parent === null) {
         obj.parent = null;
     }
@@ -411,6 +412,61 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
         }
         else {
             logger.warn('addObject '+adapterID+ '.' + objID +' ' + JSON.stringify(obj) + ' add object with non- existing parent');
+        }
+    }
+
+    // Arrange indexes
+    // Name
+    if (!metaIndex.name[adapterID]) {
+        metaIndex.name[adapterID] = {};
+    }
+
+    if (metaIndex.name[adapterID][obj.name] !== undefined && metaIndex.name[adapterID][obj.name][2/*cCombiId*/] != indexObject[2/*cCombiId*/]) {
+        logger.warn('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has not an unique name');
+    }
+    else {
+        metaIndex.name[adapterID][obj.name] = indexObject;
+    }
+
+    // Process favorites, locations, roles, etc
+    for (var attr in obj) {
+        if (attr[0] != '_' && processedFields.indexOf(attr) == -1) {
+            // Always make array from string
+            if (obj[attr] && typeof obj[attr] == 'string') {
+                obj[attr] = [obj[attr]];
+            }
+            for (var i = 0, len = obj[attr].length; i < len; i++) {
+                if (obj[attr][i]) {
+                    if (metaIndex[attr] === undefined) {
+                        metaIndex[attr] = {};
+                    }
+                    if (metaIndex[attr][obj[attr][i]] === undefined) {
+                        metaIndex[attr][obj[attr][i]] = [];
+                    }
+                    insertSorted (metaIndex[attr][obj[attr][i]], indexObject);
+                }
+            }
+
+        }
+    }
+
+    // specType
+    if (obj.specType) {
+        if (metaIndex.specType[obj.specType] === undefined) {
+            metaIndex.specType[obj.specType] = [];
+        }
+        insertSorted (metaIndex.specType[obj.specType], indexObject);
+    }
+    // address
+    if (obj.address) {
+        if (!metaIndex.address[adapterID]) {
+            metaIndex.address[adapterID] = {};
+        }
+        if (metaIndex.address[adapterID][obj.address] !== undefined && metaIndex.address[adapterID][obj.address][2/*cCombiId*/] != indexObject[2/*cCombiId*/]) {
+            logger.warn('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has not an unique address');
+        }
+        else {
+            metaIndex.address[adapterID][obj.address] = indexObject;
         }
     }
 
@@ -434,76 +490,12 @@ function addObject (adapterID, objID, obj, value, infromAdapters) {
     if (obj.type == c.cObjTypeChannel) {
         insertSorted(metaIndex.channel, indexObject);
     }
-    // Arrange indexes
-    // Name
-    if (!metaIndex.name[adapterID]) {
-        metaIndex.name[adapterID] = {};
-    }
 
-    if (metaIndex.name[adapterID][obj.name] !== undefined && metaIndex.name[adapterID][obj.name][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
-        logger.warn('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has not an unique name');
-    }
-    else {
-        metaIndex.name[adapterID][obj.name] = indexObject;
-    }
-    // Location
-    if (obj.location) {
-        for (var i = 0, len = obj.location.length; i < len; i++) {
-            if (obj.location[i]) {
-                if (metaIndex.location[obj.location[i]] === undefined) {
-                    metaIndex.location[obj.location[i]] = [];
-                }
-                insertSorted (metaIndex.location[obj.location[i]], indexObject);
-
-            }
-        }
-    }
-    // favorite
-    if (obj.favorite) {
-        for (var i = 0, len = obj.favorite.length; i < len; i++) {
-            if (obj.favorite[i]) {
-                if (metaIndex.favorite[obj.favorite[i]] === undefined) {
-                    metaIndex.favorite[obj.favorite[i]] = [];
-                }
-                insertSorted (metaIndex.favorite[obj.favorite[i]], indexObject);
-            }
-        }
-    }
-    // role
-    if (obj.role) {
-        for (var i = 0, len = obj.role.length; i < len; i++) {
-            if (obj.role[i]) {
-                if (metaIndex.role[obj.role[i]] === undefined) {
-                    metaIndex.role[obj.role[i]] = [];
-                }
-                insertSorted (metaIndex.role[obj.role[i]], indexObject);
-            }
-        }
-    }
-    // specType
-    if (obj.specType) {
-        if (metaIndex.specType[obj.specType] === undefined) {
-            metaIndex.specType[obj.specType] = [];
-        }
-        insertSorted (metaIndex.specType[obj.specType], indexObject);
-    }
-    // address
-    if (obj.address) {
-        if (!metaIndex.address[adapterID]) {
-            metaIndex.address[adapterID] = {};
-        }
-        if (metaIndex.address[adapterID][obj.address] !== undefined && metaIndex.address[adapterID][obj.address][2/*cCombyId*/] != indexObject[2/*cCombyId*/]) {
-            logger.warn('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' has not an unique address');
-        }
-        else {
-            metaIndex.address[adapterID][obj.address] = indexObject;
-        }
-    }
     logger.verbose('addObject '+adapterID+ '.' + objID +' '+ JSON.stringify(obj) + ' inserted succsessfully');
 
-    if (infromAdapters) {
+    if (informAdapters) {
         // Inform GUI and adapters about new object
-        sendNewObject(indexObject[2/*cCombyId*/], obj), value;
+        sendNewObject(indexObject, value);
     }
 
     return obj;
@@ -518,16 +510,21 @@ function sendEvent (id, value) {
     for (var i = 0, len = socketList.length; i < len; i++)  {
         if (socketList[i]) {
             var adapterId = socketList[i].adapterId;
+            if (socketList[i].subscribe) {
+                if (indexOfSorted(id, socketList[i].subscribe) == -1) {
+                    continue;
+                }
+            }
             // Adapters => GUI
             if (value.ack) {
                 if (!adapterId || metaIndex.adapterInfo[adapterId].multiData) {
-                    socketList[i].emit('event', id[2/*cCombyId*/], value);
+                    socketList[i].emit('event', id[2/*cCombiId*/], value);
                 }
             }
             // GUI => Adapters
             else {
                 if (id[0/*cAdapterId*/] == adapterId || metaIndex.adapterInfo[adapterId].multiData) {
-                    socketList[i].emit('event', (!adapterId || !metaIndex.adapterInfo[adapterId] || metaIndex.adapterInfo[adapterId].multiData) ? id[2/*cCombyId*/] : id[1/*cObjectId*/], value);
+                    socketList[i].emit('event', (!adapterId || !metaIndex.adapterInfo[adapterId] || metaIndex.adapterInfo[adapterId].multiData) ? id[2/*cCombiId*/] : id[1/*cObjectId*/], value);
                 }
             }
         }
@@ -543,7 +540,7 @@ function sendNewObject (id, value) {
             // Send information only to multiData adapters or GUI
             var adapterId = socketList[i].adapterId;
             if (!adapterId || metaIndex.adapterInfo[adapterId].multiData) {
-                socketList[i].emit('newObject', id[2/*cCombyId*/], metaObjects[id[0/*cAdapterId*/]][id[1/*cObjectId*/]], value);
+                socketList[i].emit('newObject', id[2/*cCombiId*/], metaObjects[id[0/*cAdapterId*/]][id[1/*cObjectId*/]], value);
             }
         }
     }
@@ -1317,7 +1314,9 @@ function initSocketIO(_io) {
             logger.verbose("socket.io <-- writeFile "+name+" "+content);
             fs.writeFile(settings.datastorePath+name, content);
             // Todo Fehler abfangen
-            if (callback) { callback(); }
+            if (callback) {
+                callback();
+            }
         });
 
         socket.on('writeRawFile', function (path, content, callback) {
@@ -1492,14 +1491,6 @@ function initSocketIO(_io) {
 
         socket.on('setSettings', function (_settings, reasonId, callback) {
             settings = _settings;
-
-            // TODO may be move this into install function
-            // Copy devices directory of all adapters to www/img/adapters
-            for (var i = c.cUserAdapter, len = settings.adapters.length; i < len; i++) {
-                if (settings.adapters[i]) {
-                    copyDir ("/" + settings.adapters[i].type, "/www/img/devices/" + settings.adapters[i].type);
-                }
-            }
 
             logger.verbose("socket.io <-- writeFile settings.json");
             var _settings = _.clone(settings);

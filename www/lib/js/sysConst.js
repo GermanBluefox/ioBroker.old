@@ -7,7 +7,7 @@ var cObjTypePoint   = 3;
 // Constants reserved adapters
 var cSystem          = 1;
 var cScript          = 2;
-var cWebServer       = 3
+var cWebServer       = 3;
 var cUserAdapter     = 10;
 var cSettingsAdapter = 0xFFE;
 
@@ -24,7 +24,7 @@ var cObjectsMask  = 0xFFFFF;
 
 var cAdapterId    = 0;
 var cObjectId     = 1;
-var cCombyId      = 2;
+var cCombiId      = 2;
 
 if (typeof module !== "undefined" && typeof module.exports != "undefined") {
     module.exports = {
@@ -47,7 +47,7 @@ if (typeof module !== "undefined" && typeof module.exports != "undefined") {
 
         cAdapterId         :cAdapterId           ,
         cObjectId          :cObjectId            ,
-        cCombyId           :cCombyId
+        cCombiId           :cCombiId
 
     };
 }

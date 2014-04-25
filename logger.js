@@ -1,5 +1,9 @@
-var scheduler = require('node-schedule'),
-    fs = require("fs");
+/** @namespace __dirname */
+/** @namespace process */
+/** @namespace process.on */
+
+
+var fs = require("fs");
 
 var logger = {
     logfile: __dirname + "/log/iobroker.log",
@@ -50,7 +54,7 @@ var logger = {
             }
 
             if (this.colors[level]) {
-                str = this.colors[level] + this.text[level] + this.colors["reset"] + ": " + str;
+                str = this.colors[level] + this.text[level] + this.colors.reset + ": " + str;
             } else {
                 str = this.text[level] + ": " + str;
             }
@@ -77,7 +81,7 @@ var logger = {
             log.write(str+"\n");
         }
     }
-}
+};
 
 var log = fs.createWriteStream(logger.logfile, {
     flags: "a", encoding: "utf8", mode: 0644

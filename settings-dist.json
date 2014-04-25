@@ -30,12 +30,12 @@
 
     "position" : {
         "longitude": 9.1833,
-        "latitude":  48.7667,
+        "latitude":  48.7667
     },
 
     "repository": {
-        "active" : "archive/install.json",
-        "list"   : ["archive/install.json"]
+        "active" : "repository/repository.json",
+        "list"   : ["repository/repository.json", "http://iobroker.com/download/repository.json"]
     },
 
     "useStats" : {

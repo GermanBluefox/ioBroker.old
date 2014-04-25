@@ -1,16 +1,16 @@
-var request =   require("request"),
-    logger =    require(__dirname+'/logger.js'),
-    fs =        require("fs"),
-    AdmZip =    require("adm-zip"),
-    ncp =       require('ncp').ncp;
+var request = require("request");
+var logger  = require(__dirname+'/logger.js');
+var fs      = require("fs");
+var AdmZip  = require("adm-zip");
+    ncp     = require('ncp').ncp;
 
 ncp.limit = 16;
 
 logger.info("update-ioBroker started");
 
-var path    = process.argv[2] || "https://github.com/hobbyquaker/ioBroker/archive/master.zip",
-    tmpFile,
-    tmpDir;
+var path    = process.argv[2] || "https://github.com/hobbyquaker/ioBroker/archive/master.zip";
+var tmpFile;
+var tmpDir;
 
 var parts = path.split('/');
 tmpFile = parts[parts.length - 1];
@@ -57,7 +57,7 @@ function updateCore (source) {
     ncp(source, destination, function (err) {
         if (err) {
             logger.error(err);
-            return
+            return;
         }
 
         setTimeout(function () {
@@ -98,7 +98,7 @@ function updateAddon (source) {
     ncp(source, destination, function (err) {
         if (err) {
             logger.error(err);
-            return
+            return;
         }
 
         setTimeout(function () {
@@ -164,7 +164,7 @@ function updateAdapter (source) {
         ncp(source, destination, function (err) {
             if (err) {
                 logger.error(err);
-                return
+                return;
             }
 
             setTimeout(function () {

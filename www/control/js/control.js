@@ -4,17 +4,6 @@ var currentAdapterSettings;
 var mainSettings  = null;
 var connLink      = location.protocol + '//' +  location.hostname + ':' + (parseInt(location.port)+1) + '/?key='+((typeof socketSession != 'undefined') ? socketSession : 'nokey');
 var socket;
-/*
-var cAdapterMask  = 0xFFF;
-var cAdapterShift = 20; // Bits
-var cObjectsMask  = 0xFFFFF;
-
-var cAdapterId    = 0;
-var cObjectId     = 1;
-var cCombyId      = 2;
-
-var cUserAdapter  = 3;
-*/
 
 var availAdapters = [];
 
@@ -34,9 +23,15 @@ function updateAdapterSettings() {
 }
 
 function translateWord(text, lang, dictionary) {
-    if (!mainSettings) return text;
-    if (!dictionary) dictionary = ccuWords;
-    if (!lang)       lang       = mainSettings.language || 'en';
+    if (!mainSettings) {
+        return text;
+    }
+    if (!dictionary) {
+        dictionary = ccuWords;
+    }
+    if (!lang) {
+        lang  = mainSettings.language || 'en';
+    }
 
     if (!dictionary) {
         return text;
@@ -46,10 +41,9 @@ function translateWord(text, lang, dictionary) {
         var newText = dictionary[text][lang];
         if (newText){
             return newText;
-        }
-        else if (lang != 'en') {
+        } else if (lang != 'en') {
             newText = dictionary[text]['en'];
-            if (newText){
+            if (newText) {
                 return newText;
             }
         }
@@ -58,89 +52,57 @@ function translateWord(text, lang, dictionary) {
     return text;
 }
 
-function translateWordBack(text, lang, dictionary) {
-    if (!dictionary) {
-        return text;
-    }
-    for (var word in dictionary) {
-        if (dictionary[word] === null){
-            continue;
-        }
-        if (dictionary[word][lang] == text) {
-            return word;
-        }
-    }
-
-    console.log("back: " + text);
-    return text;
-}
-
 function translateAll(lang, dictionary) {
     lang  = lang || mainSettings.language || 'en';
     dictionary = dictionary || ccuWords;
 
     $(".translate").each(function (idx) {
-        var curlang = $(this).attr('data-lang');
-        var text    = $(this).html();
-        if (curlang != lang) {
-            if (curlang) {
-                text = translateWordBack(text, curlang, dictionary);
-            }
+        var text = $(this).attr('data-lang');
+        if (!text) {
+            text = $(this).html();
+            $(this).attr('data-lang', text);
+        }
 
-            var transText = translateWord(text, lang, dictionary);
-            if (transText) {
-                $(this).html(transText);
-                $(this).attr('data-lang', lang);
-            }
+        var transText = translateWord(text, lang, dictionary);
+        if (transText) {
+            $(this).html(transText);
         }
     });
     // translate <input type="button>
     $(".translateV").each(function (idx) {
-        var text    = $( this ).attr('value');
-        var curlang = $(this).attr('data-lang');
-        if (curlang != lang) {
-            if (curlang) {
-                text = translateWordBack(text, curlang, dictionary);
-            }
+        var text = $(this).attr('data-lang');
+        if (!text) {
+            text = $(this).attr('value');
+            $(this).attr('data-lang', text);
+        }
 
-            var transText = translateWord(text, lang, dictionary);
-            if (transText) {
-                $(this).attr('value', transText);
-                $(this).attr('data-lang', lang);
-            }
+        var transText = translateWord(text, lang, dictionary);
+        if (transText) {
+            $(this).attr('value', transText);
         }
     });
     $(".translateB").each(function (idx) {
         //<span class="ui-button-text">Save</span>
-        var text    = $( this ).html();
-        text = text.replace('<span class="ui-button-text">', "").replace("</span>", "");
-        var curlang = $(this).attr('data-lang');
-        if (curlang != lang) {
-            if (curlang) {
-                text = translateWordBack(text, curlang, dictionary);
-            }
-
-            var transText = translateWord(text, lang, dictionary);
-            if (transText) {
-                $(this).html('<span class="ui-button-text">' + transText + '</span>');
-                $(this).attr('data-lang', lang);
-            }
+        var text = $(this).attr('data-lang');
+        if (!text) {
+            text = $(this).html().replace('<span class="ui-button-text">', '').replace('</span>', '');
+            $(this).attr('data-lang', text);
+        }
+        var transText = translateWord(text, lang, dictionary);
+        if (transText) {
+            $(this).html('<span class="ui-button-text">' + transText + '</span>');
         }
     });
     $(".translateT").each(function (idx) {
         //<span class="ui-button-text">Save</span>
-        var text = $( this ).attr('title');
-        var curlang = $(this).attr('data-lang');
-        if (curlang != lang) {
-            if (curlang) {
-                text = translateWordBack(text, curlang, dictionary);
-            }
-
-            var transText = translateWord(text, lang, dictionary);
-            if (transText) {
-                $(this).attr('title', transText);
-                $(this).attr('data-lang', lang);
-            }
+        var text = $(this).attr('data-lang');
+        if (!text) {
+            text = $(this).attr('title');
+            $(this).attr('data-lang', text);
+        }
+        var transText = translateWord(text, lang, dictionary);
+        if (transText) {
+            $(this).attr('title', transText);
         }
     });
 }

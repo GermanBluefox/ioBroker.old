@@ -24,10 +24,10 @@ var iCopied = 0;
 var zipFile = null;
 
 var deleteFolderRecursive = function(path) {
-    if( fs.existsSync(path) ) {
+    if (fs.existsSync(path)) {
         fs.readdirSync(path).forEach(function(file,index){
             var curPath = path + "/" + file;
-            if(fs.statSync(curPath).isDirectory()) { // recurse
+            if (fs.statSync(curPath).isDirectory()) { // recurse
                 deleteFolderRecursive(curPath);
             } else { // delete file
                 fs.unlinkSync(curPath);
@@ -50,15 +50,15 @@ function copyFile (source, destination) {
             gz.compress(backupFolder+"/backup", zipFile, function(err) {
                 if (!err) {
                     logger.info ("create-backup file " + zipFile + " created");
-                }
-                else{
+                } else {
                     logger.info ("create-backup file " + zipFile + " created");
                 }
                 // Remove directory
                 deleteFolderRecursive (backupFolder+"/backup");
                 // Signal to ioBroker.js the file name
-                process.send (zipFile.replace (__dirname + "/www", "").replace (__dirname + "\www", ""));
-                logger.info ("create-backup file " + zipFile.replace (__dirname + "/www", "").replace (__dirname + "\www", "") + "");
+                var fileName = zipFile.replace(__dirname + "/www", "").replace(__dirname + "\\www", "");
+                process.send (fileName);
+                logger.info ("create-backup file " + fileName);
             });
         }
     });
@@ -67,9 +67,9 @@ function copyFile (source, destination) {
 function copyDirectory (source, destination, exceptionFolders) {
     var list = fs.readdirSync (source);
     var exceptions = exceptionFolders ? exceptionFolders.split(",") : [];
-
+    var stat;
     try {
-        var stat = fs.lstatSync(destination);
+        stat = fs.lstatSync(destination);
         if (!stat) {
             fs.mkdirSync (destination);
         }
@@ -109,8 +109,12 @@ function getCurrentDate (d) {
     var year  = d.getFullYear();
     var month = d.getMonth()+1;
     var day   = d.getDate();
-    if (month < 10) month = "0" + month;
-    if (day < 10)   day   = "0" + day;
+    if (month < 10) {
+        month = "0" + month;
+    }
+    if (day < 10) {
+        day   = "0" + day;
+    }
     return year + "_" + month + "_" + day;
 }
 
@@ -178,7 +182,7 @@ function applyBackup (zipFileName) {
         ncp(backupFolder + "/backup", __dirname, function (err) {
             if (err) {
                 logger.error(err);
-                return
+                return;
             }
 
             setTimeout(function () {
