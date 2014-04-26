@@ -370,25 +370,35 @@ module.exports = function(grunt) {
     });
 
     grunt.registerTask('windows-msi', function () {
-        grunt.task.run([
-            'copy:windows',
-            'replace:windowsVersion',
-            'command:makeWindowsMSI'
-        ]);
-        console.log('========= Please wait a little (ca 1 min). The msi file will be created in ioBroker/delivery directory after the grunt is finished.');
+         if (/^win/.test(process.platform)) {
+             grunt.task.run([
+                 'copy:windows',
+                 'replace:windowsVersion',
+                 'command:makeWindowsMSI'
+             ]);
+             console.log('========= Please wait a little (ca 1 min). The msi file will be created in ioBroker/delivery directory after the grunt is finished.');
+             console.log('========= you can start batch file .windows-ready\\createSetup.bat manually');
+             // Sometimes command:makeWindowsMSI does not work, you can start batch file manually
+             grunt.file.write(__dirname+'\\.windows-ready\\createSetup.bat', '"'+__dirname+'\\windows\\InnoSetup5\\ISCC.exe" "'+__dirname+'\\.windows-ready\\ioBroker.iss"');
+         } else {
+            console.log('Cannot create windows setup, while host is not windows');
+         }
     });
-
+    /*grunt.registerTask('windows-msi', [
+        'copy:windows',
+        'replace:windowsVersion',
+        'command:makeWindowsMSI'
+    ]);*/
     grunt.registerTask('default', [
 //        'jshint',
 //        'jscs',
-        'clean:all',
-        'replace:core',
-        'makeEmptyDirs',
-        'copy:static',
-        'compress:main',
-        'buildAllAdapters',
-        'debian-pi-packet',
+//        'clean:all',
+//        'replace:core',
+//        'makeEmptyDirs',
+ //       'copy:static',
+ //       'compress:main',
+ //       'buildAllAdapters',
+ //       'debian-pi-packet',
         'windows-msi'
     ]);
-
 };

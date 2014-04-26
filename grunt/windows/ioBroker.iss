@@ -54,7 +54,11 @@ Source: "..\.windows-ready\data\*"; DestDir: "{app}"; Flags: ignoreversion recur
 
 
 [Icons]
-Name: "{group}\{#MyAppName} Settings"; Filename: "start http://localhost:8080"; IconFilename: "{app}\{#MyAppIcon}"
+Name: "{group}\{#MyAppName} Settings"; Filename: "http://localhost:8080"; IconFilename: "{app}\{#MyAppIcon}"
+Name: "{group}\{#MyAppName} Uninstall"; Filename: "{uninstallexe}"
+Name: "{group}\Start {#MyAppName} Service"; Filename: "{sys}\net"; Parameters: "start ioBroker"
+Name: "{group}\Stop {#MyAppName} Service"; Filename: "{sys}\net"; Parameters: "stop ioBroker"
+Name: "{group}\Restart {#MyAppName} Service"; Filename: "{sys}\net"; Parameters: "restart ioBroker"
 
 ; Here's an example of how you could use a start menu item for just Chrome, no batch file
 ;Name: "{group}\{#MyAppName}"; Filename: "{pf32}\Google\Chrome\Application\chrome.exe"; Parameters: "--app=http://localhost:5566 --user-data-dir=%APPDATA%\{#MyAppShortName}\"; IconFilename: "{app}\{#MyAppIcon}"
