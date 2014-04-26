@@ -9,7 +9,7 @@ module.exports = function(grunt) {
     grunt.initConfig({
         pkg: pkg,
         clean: {
-            all: ['.build', '.debian-control', '.debian-ready'],
+            all: ['.build', '.debian-control', '.debian-ready', '.windows-ready'],
             debianControl: ['.debian-ready/DEBIAN']
         },
         replace: {
@@ -105,7 +105,7 @@ module.exports = function(grunt) {
                     {
                         expand: true,
                         cwd: '.build',
-                        src: ['**/*'],
+                        src: ['**/*', '!node_modules/node-windows/**/*'],
                         dest: '.debian-ready/sysroot/opt/ioBroker/'
                     },
                     {
@@ -119,6 +119,22 @@ module.exports = function(grunt) {
                         cwd: '.debian-control/',
                         src: ['ioBroker.sh'],
                         dest: '.debian-ready/sysroot/etc/init.d/'
+                    }
+                ]
+            },
+            windows: {
+                files: [
+                    {
+                        expand: true,
+                        cwd: 'windows',
+                        src: ['**/*'],
+                        dest: '.windows-ready/'
+                    },
+                    {
+                        expand: true,
+                        cwd: '.build',
+                        src: ['**/*'],
+                        dest: '.windows-ready/data/'
                     }
                 ]
             }
@@ -294,7 +310,7 @@ module.exports = function(grunt) {
         grunt.loadNpmTasks(gruntTasks[i]);
     }
 
-    grunt.registerTask('debianPaket', function () {
+    grunt.registerTask('debianPacket', function () {
         // Calculate size of directory
         var fs = require('fs'),
             path = require('path');
@@ -327,6 +343,10 @@ module.exports = function(grunt) {
         console.log('========= Copy .debian-ready directory to linux and start "sudo bash redeb.sh" =============');
     });
 
+    grunt.registerTask('windowsPacket', [
+        'copy:windows'
+    ]);
+
     grunt.registerTask('default', [
 //        'jshint',
 //        'jscs',
@@ -334,9 +354,10 @@ module.exports = function(grunt) {
         'replace:core',
         'makeEmptyDirs',
         'copy:static',
-        'compress:main',
-        'buildAllAdapters',
-        'debianPaket'
+//        'compress:main',
+//        'buildAllAdapters',
+//        'debianPacket',
+          'windowsPacket'
     ]);
 
 };
