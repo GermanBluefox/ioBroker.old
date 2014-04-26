@@ -1,1 +1,1 @@
-node_modules\.bin\grunt.cmd
+node_modules\.bin\grunt.cmd %1

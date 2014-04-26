@@ -96,6 +96,8 @@ var ccuWords = {
     "Timestamp"         : {"en": "Timestamp",             "de": "Zeitstempel",        "ru": "Время"},
     "Severity"          : {"en": "Severity",              "de": "Stufe",              "ru": "Приоритет"},
     "Message"           : {"en": "Message",               "de": "Meldung",            "ru": "Сообщение"},
+    "adapter"           : {"en": "Adapter",               "de": "Adapter",            "ru": "Драйвер"},
+    "objectId"          : {"en": "ObjectID",              "de": "ObjektID",           "ru": "ID узла"},
     "TypeName"          : {"en": "TypeName",              "de": "Typname",            "ru": "Тип"},
     "Name"              : {"en": "Name",                  "de": "Name",               "ru": "Имя"},
     "Parent Name"       : {"en": "Parent Name",           "de": "Kanal",              "ru": "Имя родителя"},

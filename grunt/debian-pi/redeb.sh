@@ -39,6 +39,6 @@ echo 2.0 > ./debian-binary
 find ./ -type d -exec chmod 0755 {} \;
 find ./ -type f -exec chmod go-w {} \;
 chown -R root:root ./
-ar r ../ioBroker_2.0.1.deb debian-binary control.tar.gz data.tar.gz
+ar r ../ioBroker-pi.2.0.1.deb debian-binary control.tar.gz data.tar.gz
 cd ..
 #rsync -a ${DIST}/hellonode-1.deb ./

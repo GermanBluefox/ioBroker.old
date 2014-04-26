@@ -274,7 +274,7 @@ $(document).ready(function () {
         },
 
         getWord: function (word) {
-            return "<span class='translate' data-lang='"+((mainSettings && mainSettings.language) ? mainSettings.language : 'en')+"'>"+translateWord(word)+"</span>";
+            return "<span class='translate' data-lang='" + word + "'>" + translateWord(word) + "</span>";
         },
 
         resizeGrids: function () {
@@ -1328,7 +1328,7 @@ $(document).ready(function () {
         $dataPointGrid.jqGrid({
             datatype: "local",
 
-            colNames:['id', 'adapter', 'objectId', control.getWord('TypeName'), control.getWord('Name'), control.getWord('Parent Name'), control.getWord('Value'), control.getWord('Timestamp'), control.getWord('ack'), control.getWord('lastChange')],
+            colNames:['id', control.getWord('adapter'), control.getWord('objectId'), control.getWord('TypeName'), control.getWord('Name'), control.getWord('Parent Name'), control.getWord('Value'), control.getWord('Timestamp'), control.getWord('ack'), control.getWord('lastChange')],
             colModel:[
                 {name:'id',index:'id', width:60, sorttype: "int"},
                 {name:'adapter',index:'adapter', width:40, sorttype: "int"},

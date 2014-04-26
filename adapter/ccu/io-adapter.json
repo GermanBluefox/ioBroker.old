@@ -1,6 +1,11 @@
 {
     "version": "0.1.0",
-    "name": "ioBroker.adapter.ccu",
+    "name": "Homematic CCU",
+	"description" : {
+		"en": "Homematic CCU connection for monitor and control",
+		"de": "Anbindung von Homematic CCU für Steuerung und Beobachtung",
+		"ru": "Подключение Homematic CCU для управления умным домом"
+		},
     "ident": "ccu",
     "dirname": "ccu"
 }
