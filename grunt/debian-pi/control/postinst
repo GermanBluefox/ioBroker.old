@@ -1,0 +1,21 @@
+#!/bin/bash
+#Create empty directories
+if [ ! -d "/opt/ioBroker/tmp" ]; then
+  mkdir /opt/ioBroker/tmp
+fi
+if [ ! -d "/opt/ioBroker/datastore" ]; then
+  mkdir /opt/ioBroker/datastore
+fi
+if [ ! -d "/opt/ioBroker/log" ]; then
+  mkdir /opt/ioBroker/log
+fi
+#Set rights
+echo "Set permissions..."
+find /opt/ioBroker/ -type d -exec chmod 777 {} \;
+find /opt/ioBroker/ -type f -exec chmod 777 {} \;
+chown -R @@user:@@user /opt/ioBroker/
+chmod 777 /etc/init.d/ioBroker.sh
+chown root:root /etc/init.d/ioBroker.sh
+# Start the service!
+echo "Start ioBroker..."
+node /opt/ioBroker/ioBroker.js start

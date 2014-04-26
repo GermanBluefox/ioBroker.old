@@ -9,8 +9,8 @@ module.exports = function(grunt) {
     grunt.initConfig({
         pkg: pkg,
         clean: {
-            all: ['.build', '.debian-control', '.debian-ready', '.windows-ready'],
-            debianControl: ['.debian-ready/DEBIAN']
+            all: ['.build', '.debian-pi-control', '.debian-pi-ready', '.windows-ready'],
+            'debian-pi-control': ['.debian-pi-ready/DEBIAN']
         },
         replace: {
             core: {
@@ -31,7 +31,7 @@ module.exports = function(grunt) {
                     }
                 ]
             },
-            debianVersion: {
+            'debian-pi-version': {
                 options: {
                     force: true,
                     patterns: [
@@ -57,20 +57,39 @@ module.exports = function(grunt) {
                     {
                         expand:  true,
                         flatten: true,
-                        src:     ['debian/control/*'],
-                        dest:    '.debian-control/control/'
+                        src:     ['debian-pi/control/*'],
+                        dest:    '.debian-pi-control/control/'
                     },
                     {
                         expand:  true,
                         flatten: true,
-                        src:     ['debian/redeb.sh'],
-                        dest:    '.debian-ready/'
+                        src:     ['debian-pi/redeb.sh'],
+                        dest:    '.debian-pi-ready/'
                     },
                     {
                         expand:  true,
                         flatten: true,
-                        src:     ['debian/etc/init.d/ioBroker.sh'],
-                        dest:    '.debian-control/'
+                        src:     ['debian-pi/etc/init.d/ioBroker.sh'],
+                        dest:    '.debian-pi-control/'
+                    }
+                ]
+            },
+            windowsVersion: {
+                options: {
+                    force: true,
+                    patterns: [
+                        {
+                            match: 'version',
+                            replacement: iocore.version
+                        }
+                    ]
+                },
+                files: [
+                    {
+                        expand:  true,
+                        flatten: true,
+                        src:     ['windows/ioBroker.iss'],
+                        dest:    '.windows-ready/'
                     }
                 ]
             }
@@ -100,25 +119,25 @@ module.exports = function(grunt) {
                     }
                 ]
             },
-            debian: {
+            'debian-pi': {
                 files: [
                     {
                         expand: true,
                         cwd: '.build',
                         src: ['**/*', '!node_modules/node-windows/**/*'],
-                        dest: '.debian-ready/sysroot/opt/ioBroker/'
+                        dest: '.debian-pi-ready/sysroot/opt/ioBroker/'
                     },
                     {
                         expand: true,
-                        cwd: '.debian-control/control',
+                        cwd: '.debian-pi-control/control',
                         src: ['**/*'],
-                        dest: '.debian-ready/DEBIAN/'
+                        dest: '.debian-pi-ready/DEBIAN/'
                     },
                     {
                         expand: true,
-                        cwd: '.debian-control/',
+                        cwd: '.debian-pi-control/',
                         src: ['ioBroker.sh'],
-                        dest: '.debian-ready/sysroot/etc/init.d/'
+                        dest: '.debian-pi-ready/sysroot/etc/init.d/'
                     }
                 ]
             },
@@ -127,7 +146,7 @@ module.exports = function(grunt) {
                     {
                         expand: true,
                         cwd: 'windows',
-                        src: ['**/*'],
+                        src: ['*.js', 'v0*/**/*', '*.ico', '*.bat'],
                         dest: '.windows-ready/'
                     },
                     {
@@ -211,29 +230,29 @@ module.exports = function(grunt) {
                     {expand: true, src: ['**'],  dest: '/', cwd: srcDir + 'adapter/<%= grunt.task.current.args[0] %>/'}
                 ]
             },
-            debianControl: {
+            'debian-pi-control': {
                 options: {
-                    archive: '.debian-ready/control.tar.gz'
+                    archive: '.debian-pi-ready/control.tar.gz'
                 },
                 files: [
                     {
                         expand: true,
                         src: ['**/*'],
                         dest: '/',
-                        cwd: '.debian-control/control/'
+                        cwd: '.debian-pi-control/control/'
                     }
                 ]
             },
-            debianData: {
+            'debian-pi-data': {
                 options: {
-                    archive: '.debian-ready/data.tar.gz'
+                    archive: '.debian-pi-ready/data.tar.gz'
                 },
                 files: [
                     {
                         expand: true,
                         src: ['**/*'],
                         dest: '/',
-                        cwd: '.debian-ready/sysroot/'
+                        cwd: '.debian-pi-ready/sysroot/'
                     }
                 ]
             },
@@ -244,6 +263,12 @@ module.exports = function(grunt) {
                 files: [
                     {expand: true, src: ['**'],  dest: '/', cwd: srcDir + 'adapter/<%= grunt.task.current.args[0] %>/'}
                 ]
+            }
+        },
+        command : {
+            makeWindowsMSI: {
+               // type : 'bat',
+                cmd  :'"'+__dirname+'\\windows\\InnoSetup5\\ISCC.exe" "'+__dirname+'\\.windows-ready\\ioBroker.iss" > "'+__dirname+'\\.windows-ready\\setup.log"'
             }
         }
     });
@@ -300,6 +325,7 @@ module.exports = function(grunt) {
         'grunt-contrib-concat',
         'grunt-contrib-copy',
         'grunt-contrib-compress',
+        'grunt-contrib-commands',
         'grunt-contrib-jshint',
         'grunt-jscs-checker'
 
@@ -310,7 +336,7 @@ module.exports = function(grunt) {
         grunt.loadNpmTasks(gruntTasks[i]);
     }
 
-    grunt.registerTask('debianPacket', function () {
+    grunt.registerTask('debian-pi-packet', function () {
         // Calculate size of directory
         var fs = require('fs'),
             path = require('path');
@@ -334,18 +360,23 @@ module.exports = function(grunt) {
         var size = readDirSize('.build');
 
         grunt.task.run([
-            'replace:debianVersion:'+(Math.round(size/1024)+8)+':pi:armhf', // Settings for raspbian
-            'copy:debian',
-            //'compress:debianData',
-            'compress:debianControl',
-            'clean:debianControl'
+            'replace:debian-pi-version:'+(Math.round(size/1024)+8)+':pi:armhf', // Settings for raspbian
+            'copy:debian-pi',
+            //'compress:debian-pi-data',
+            'compress:debian-pi-control',
+            'clean:debian-pi-control'
         ]);
-        console.log('========= Copy .debian-ready directory to linux and start "sudo bash redeb.sh" =============');
+        console.log('========= Copy .debian-pi-ready directory to Raspbery PI and start "sudo bash redeb.sh" =============');
     });
 
-    grunt.registerTask('windowsPacket', [
-        'copy:windows'
-    ]);
+    grunt.registerTask('windows-msi', function () {
+        grunt.task.run([
+            'copy:windows',
+            'replace:windowsVersion',
+            'command:makeWindowsMSI'
+        ]);
+        console.log('========= Please wait a little (ca 1 min). The msi file will be created in ioBroker/delivery directory after the grunt is finished.');
+    });
 
     grunt.registerTask('default', [
 //        'jshint',
@@ -354,10 +385,10 @@ module.exports = function(grunt) {
         'replace:core',
         'makeEmptyDirs',
         'copy:static',
-//        'compress:main',
-//        'buildAllAdapters',
-//        'debianPacket',
-          'windowsPacket'
+        'compress:main',
+        'buildAllAdapters',
+        'debian-pi-packet',
+        'windows-msi'
     ]);
 
 };
