@@ -701,6 +701,7 @@ $(document).ready(function () {
     var $eventGrid       = $('#grid_events');
     var $connGrid        = $('#grid_connections');
     var $dataObjectsGrid = $('#grid_dataobjects');
+    var $repoCore        = $('#repoCore');
 
     $mainTabs.tabs({
         activate: function (e, ui) {
@@ -771,6 +772,7 @@ $(document).ready(function () {
         });
 
         $("#loader_message").append(translateWord("loading settings") + " ... <br/>");
+        // Read ioBroker settings from server
         socket.emit("getSettings", function (settings) {
             mainSettings = settings;
             $(".iobroker-version").html(settings.version);
@@ -864,6 +866,7 @@ $(document).ready(function () {
             $(".comby-status").html(table);
         });
 
+        // Get all installed addons
         $("#loader_message").append("<span id='loader_addons'>"+translateWord("loading addons") + " </span><br/>");
         socket.emit("readdir", ["www"], function (data) {
 
@@ -911,6 +914,7 @@ $(document).ready(function () {
             });
         });
 
+        // Get all files in datastore directory
         $("#loader_message").append(translateWord("loading datastore") + " ... <br/>");
         socket.emit("readdir", ["datastore"], function (data) {
             for (var i = 0; i < data.length; i++) {

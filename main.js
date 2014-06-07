@@ -113,6 +113,9 @@ if (!settings.adapters) {
 settings.adapters[c.cSystem]    = {type: "System",    parent: c.cSystem,    description: "ioBroker system variables"};
 settings.adapters[c.cWebServer] = {type: "webServer", parent: c.cWebServer, description: "ioBroker web server"};
 
+// Clear tmp directory
+deleteFolderRecursive(__dirname+'/tmp');
+
 loadPersistentObjects();
 loadDataValues();
 createSystemVariables ();
@@ -233,6 +236,20 @@ function copyDir (srcDir, destSrc) {
         }); //copies directory, even if it has subdirectories or files
     }
 }
+
+function deleteFolderRecursive (path) {
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function(file,index){
+            var curPath = path + "/" + file;
+            if (fs.statSync(curPath).isDirectory()) { // recurse
+                deleteFolderRecursive(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
 
 function indexOfSorted (element, arr) {
     var num = locationOf(element, arr);
